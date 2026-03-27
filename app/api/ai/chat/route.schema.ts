@@ -14,7 +14,6 @@ const chatEntropyAggregateSchema = z
     finalPoolByteLength: z.number().int().nonnegative(),
     frameCount: z.number().int().nonnegative(),
     totalExternalEntropyBytesLength: z.number().int().nonnegative(),
-    totalLavaBytesLength: z.number().int().nonnegative(),
   })
   .strict();
 

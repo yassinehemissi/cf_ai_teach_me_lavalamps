@@ -82,8 +82,8 @@ export function EntropyModal({
                     title="Per-Frame Extraction"
                     lines={[
                       `Total external demo bytes: ${summary.aggregate.totalExternalEntropyBytesLength.toLocaleString()}`,
-                      `Total lava bytes: ${summary.aggregate.totalLavaBytesLength.toLocaleString()}`,
                       "Each frame is resized, flattened to RGBA, and mixed with timing/demo entropy.",
+                      "The screenshot pixels are the lamp-derived visual source bytes.",
                     ]}
                   />
                   <StageCard
@@ -147,7 +147,7 @@ export function EntropyModal({
                     >
                       <div className="relative aspect-video w-full">
                         <Image
-                          src={frame.capture.screenshotDataUri}
+                          src={frame.capture.screenshotUrl}
                           alt={`Captured simulation screenshot frame ${frame.capture.frameIndex + 1}`}
                           fill
                           unoptimized
@@ -198,7 +198,7 @@ export function EntropyModal({
             <div className="max-h-[78vh] space-y-6 overflow-y-auto px-6 py-6">
               <div className="relative aspect-video w-full overflow-hidden rounded-2xl border border-stone-800 bg-stone-950/80">
                 <Image
-                  src={selectedFrame.capture.screenshotDataUri}
+                  src={selectedFrame.capture.screenshotUrl}
                   alt={`Captured simulation screenshot frame ${selectedFrame.capture.frameIndex + 1}`}
                   fill
                   unoptimized
@@ -211,7 +211,7 @@ export function EntropyModal({
                   title="Capture"
                   lines={[
                     `MIME type: ${selectedFrame.capture.mimeType}`,
-                    `PNG data URI length: ${selectedFrame.capture.dataUriLength.toLocaleString()} chars`,
+                    `PNG blob bytes: ${selectedFrame.capture.screenshotByteLength.toLocaleString()}`,
                   ]}
                 />
                 <StageCard
@@ -244,7 +244,6 @@ export function EntropyModal({
                   title="Entropy Pool"
                   lines={[
                     `Combined bytes: ${selectedFrame.pool.byteLength.toLocaleString()}`,
-                    `Lava bytes: ${selectedFrame.pool.lavaBytesLength.toLocaleString()}`,
                     `External bytes: ${selectedFrame.externalEntropy.byteLength.toLocaleString()}`,
                     `Preview: ${selectedFrame.pool.previewHex}`,
                   ]}
@@ -262,12 +261,12 @@ export function EntropyModal({
               </section>
               <div className="grid gap-3 md:grid-cols-3">
                 <TimingPill
-                  label="Decode data URI"
-                  value={selectedFrame.timingsMs.decodeDataUriMs}
+                  label="Create preview blob"
+                  value={selectedFrame.timingsMs.createPreviewBlobMs}
                 />
                 <TimingPill
-                  label="Create bitmap"
-                  value={selectedFrame.timingsMs.createBitmapMs}
+                  label="Capture bitmap"
+                  value={selectedFrame.timingsMs.captureBitmapMs}
                 />
                 <TimingPill
                   label="Resize image"

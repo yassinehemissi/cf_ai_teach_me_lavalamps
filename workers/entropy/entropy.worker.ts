@@ -50,18 +50,9 @@ async function extractEntropyFromImage(
   request: EntropyWorkerRequest,
 ): Promise<EntropyWorkerSuccessResponse> {
   const startTime = performance.now();
-
-  const decodeStart = performance.now();
-  const sourceBlob = dataUriToBlob(request.dataUri);
-  const decodeDataUriMs = performance.now() - decodeStart;
-
-  if (typeof createImageBitmap !== "function") {
-    throw new Error("createImageBitmap is unavailable in the entropy worker.");
-  }
-
-  const bitmapStart = performance.now();
-  const sourceBitmap = await createImageBitmap(sourceBlob);
-  const createBitmapMs = performance.now() - bitmapStart;
+  const sourceBitmap = request.sourceBitmap;
+  const createPreviewBlobMs = 0;
+  const captureBitmapMs = 0;
   const sourceWidth = sourceBitmap.width;
   const sourceHeight = sourceBitmap.height;
 
@@ -100,8 +91,8 @@ async function extractEntropyFromImage(
   sourceBitmap.close();
 
   const timingNoiseBytes = buildTimingNoiseBytes([
-    decodeDataUriMs,
-    createBitmapMs,
+    createPreviewBlobMs,
+    captureBitmapMs,
     resizeImageMs,
     extractRgbaMs,
     performance.now() - startTime,
@@ -110,7 +101,6 @@ async function extractEntropyFromImage(
 
   const entropyPoolBytes = concatUint8Arrays([
     rgbaBytes,
-    toUint8Array(request.lavaBytes),
     toUint8Array(request.externalEntropyBytes),
     timingNoiseBytes,
   ]);
@@ -121,8 +111,8 @@ async function extractEntropyFromImage(
 
   const totalMs = performance.now() - startTime;
   const timingsMs: EntropyTimingStats = {
-    decodeDataUriMs,
-    createBitmapMs,
+    createPreviewBlobMs,
+    captureBitmapMs,
     resizeImageMs,
     extractRgbaMs,
     hashPoolMs,
@@ -146,25 +136,6 @@ async function extractEntropyFromImage(
     supplementalEntropyOnly: true,
     timingsMs,
   };
-}
-
-function dataUriToBlob(dataUri: string) {
-  const [header, payload] = dataUri.split(",", 2);
-
-  if (!header || payload === undefined || !header.startsWith("data:")) {
-    throw new Error("The provided dataUri is malformed.");
-  }
-
-  const isBase64 = header.includes(";base64");
-  const mimeType = header.slice(5).replace(";base64", "") || "application/octet-stream";
-  const binary = isBase64 ? atob(payload) : decodeURIComponent(payload);
-  const bytes = new Uint8Array(binary.length);
-
-  for (let index = 0; index < binary.length; index += 1) {
-    bytes[index] = binary.charCodeAt(index);
-  }
-
-  return new Blob([bytes], { type: mimeType });
 }
 
 function resolveTargetSize(

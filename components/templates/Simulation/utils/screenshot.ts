@@ -1,6 +1,6 @@
 import type { Camera, Scene, WebGLRenderer } from "three";
 import type { EntropyWorkerRequest } from "@/workers/entropy/entropy.types";
-import { extractEntropyFromDataUri } from "@/workers/entropy/entropy.utils";
+import { extractEntropyFromBitmap } from "@/workers/entropy/entropy.utils";
 
 export async function captureCurrentScene(
   gl: WebGLRenderer,
@@ -22,40 +22,50 @@ export async function extractSceneEntropy(
   gl: WebGLRenderer,
   scene: Scene,
   camera: Camera,
-  request: Omit<EntropyWorkerRequest, "dataUri" | "requestId" | "type">,
+  request: Omit<EntropyWorkerRequest, "requestId" | "sourceBitmap" | "type">,
 ) {
   await captureCurrentScene(gl, scene, camera);
-  const dataUri = gl.domElement.toDataURL("image/png");
+  const [sourceBitmap, screenshotBlob] = await Promise.all([
+    captureSceneBitmap(gl.domElement),
+    captureSceneBlob(gl.domElement),
+  ]);
+  const screenshotUrl = URL.createObjectURL(screenshotBlob);
 
-  if (!isValidPngDataUri(dataUri)) {
-    throw new Error("Scene capture did not produce a valid PNG data URI.");
+  try {
+    const result = await extractEntropyFromBitmap({
+      type: "extract-entropy",
+      requestId: crypto.randomUUID(),
+      sourceBitmap,
+      ...request,
+    });
+
+    return {
+      result,
+      screenshotByteLength: screenshotBlob.size,
+      screenshotUrl,
+    };
+  } catch (error) {
+    URL.revokeObjectURL(screenshotUrl);
+    throw error;
+  }
+}
+
+async function captureSceneBitmap(canvas: HTMLCanvasElement) {
+  if (typeof createImageBitmap !== "function") {
+    throw new Error("createImageBitmap is unavailable for entropy capture.");
   }
 
-  const result = await extractEntropyFromDataUri({
-    type: "extract-entropy",
-    requestId: crypto.randomUUID(),
-    dataUri,
-    ...request,
+  return createImageBitmap(canvas);
+}
+
+async function captureSceneBlob(canvas: HTMLCanvasElement) {
+  const blob = await new Promise<Blob | null>((resolve) => {
+    canvas.toBlob(resolve, "image/png");
   });
 
-  return {
-    dataUri,
-    result,
-  };
-}
+  if (!blob) {
+    throw new Error("Scene capture did not produce a PNG blob.");
+  }
 
-export function downloadScreenshot(dataUrl: string) {
-  const anchor = document.createElement("a");
-
-  anchor.href = dataUrl;
-  anchor.download = `lava-lamp-simulation-${Date.now()}.png`;
-  anchor.click();
-}
-
-function isValidPngDataUri(dataUri: string) {
-  return (
-    dataUri.startsWith("data:image/png") &&
-    dataUri.includes(",") &&
-    dataUri.length > 64
-  );
+  return blob;
 }

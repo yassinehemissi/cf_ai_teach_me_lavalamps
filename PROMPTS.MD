@@ -1681,3 +1681,23 @@ run a building loop and keep fixing build lint errors till project builds (no co
 I fixed the production build blocker by wrapping the auth client form in `Suspense` on both auth pages so `useSearchParams` satisfies Next's prerender rules.
 I then reran the full production build and the repo lint command until both passed without changing any build or lint configuration.
 The only remaining output is a non-blocking Next workspace-root warning; the app itself now builds and lints successfully.
+
+## 2026-03-27
+
+### User Prompt
+remove lavaBytes we use screenshot bytes these are the lavabytes; can you walk me through the code real code so we optimize it
+
+### 3-Line Answer Summary
+I removed the dead `lavaBytes` path from the entropy worker request, simulation summaries, modal UI, and chat entropy context so the pipeline matches the actual screenshot-based implementation.
+The entropy pool is now described correctly as screenshot RGBA bytes plus timing noise plus demo external entropy, with no fake zero-valued lava-byte fields.
+I also traced the real end-to-end flow through the simulation bridge, screenshot helper, worker boundary, and modal so the next optimization pass can target the actual hotspots.
+
+## 2026-03-27
+
+### User Prompt
+use toBlob over toDataURI as it i stoo expensive, keep the worker centralized to avoid reinit everytime; use raw canva pixels redecoding data uris is too expensive and not necessary in that sense use Bitmap i'd move the aggregations out of react state but not now;
+
+### 3-Line Answer Summary
+I refactored the entropy pipeline so the worker now receives a transferred `ImageBitmap` from the live canvas instead of a PNG data URI, which removes the expensive decode roundtrip.
+The worker is now shared across requests instead of being recreated every time, and `toBlob()` is only used once per frame to generate the modal preview image as a revokable object URL.
+I updated the entropy summary and modal labels to match the new blob/bitmap flow, and verified the changes with `npx tsc --noEmit` and targeted `eslint`.
