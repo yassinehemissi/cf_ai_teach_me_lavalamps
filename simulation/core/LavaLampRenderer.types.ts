@@ -1,7 +1,7 @@
 import type {
-  BlobState,
   PhysicsSimulatorConfig,
   ScalarFieldSnapshot,
+  SimulationDynamicsSnapshot,
   SimulationBounds,
 } from "./PhysicsSimulator.types";
 import type { LavaLampPlacement } from "./LavaLampSimulation";
@@ -35,7 +35,7 @@ export type LavaLampRenderSnapshot = {
   placement: LavaLampPlacement;
   modelAssetPath: string;
   meshNames: LavaLampModelMeshNames;
-  blobs: BlobState[];
   field: ScalarFieldSnapshot;
+  dynamics: SimulationDynamicsSnapshot;
   constraint: LavaLampConstraintDescriptor;
 };

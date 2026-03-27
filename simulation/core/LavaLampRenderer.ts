@@ -16,14 +16,17 @@ import type {
 } from "./LavaLampRenderer.types";
 
 export class LavaLampRenderer extends LavaLampSimulation {
+  // Provides the default model path used by renderer snapshots.
   static readonly DEFAULT_MODEL_ASSET_PATH = "assets/lava_lamp.glb";
 
+  // Defines the mesh names expected in the lamp GLB.
   static readonly DEFAULT_MESH_NAMES: LavaLampModelMeshNames = {
     body: "Lamp Body_Material.001_0",
     glass: "Glass_Material.002_0",
     lava: "Lava_Material.003_0",
   };
 
+  // Stores the fallback lamp interior used before mesh-derived constraints exist.
   static readonly DEFAULT_INTERIOR_BOUNDS_HINT: SimulationBounds = {
     min: {
       x: -0.8894967436790466,
@@ -42,6 +45,7 @@ export class LavaLampRenderer extends LavaLampSimulation {
   private readonly physicsSimulator: PhysicsSimulator;
   private readonly constraintDescriptor: LavaLampConstraintDescriptor;
 
+  // Builds a renderer facade around the physics simulator and model metadata.
   constructor(placement: LavaLampPlacement, config: LavaLampRendererConfig) {
     super(placement);
 
@@ -69,30 +73,27 @@ export class LavaLampRenderer extends LavaLampSimulation {
     );
   }
 
+  // Resets the underlying simulator to its initial state.
   reset(): void {
     this.physicsSimulator.reset();
   }
 
+  // Advances the underlying simulator by one external step request.
   step(input: SimulationStepInput): void {
     this.physicsSimulator.step(input);
   }
 
+  // Applies a guarded runtime parameter update to the underlying simulator.
   setParameter(update: SimulationParameterUpdate): void {
     this.physicsSimulator.setParameter(update);
   }
 
-  getPhysicsSimulator(): PhysicsSimulator {
-    return this.physicsSimulator;
-  }
-
-  getModelAssetPath(): string {
-    return this.modelAssetPath;
-  }
-
+  // Returns a defensive copy of the configured mesh names.
   getMeshNames(): LavaLampModelMeshNames {
     return { ...this.meshNames };
   }
 
+  // Returns a defensive copy of the renderer constraint metadata.
   getConstraintDescriptor(): LavaLampConstraintDescriptor {
     return {
       ...this.constraintDescriptor,
@@ -104,13 +105,14 @@ export class LavaLampRenderer extends LavaLampSimulation {
     };
   }
 
+  // Packages the current simulation state into a render-facing snapshot.
   getRenderSnapshot(): LavaLampRenderSnapshot {
     return {
       placement: { ...this.placement },
       modelAssetPath: this.modelAssetPath,
       meshNames: this.getMeshNames(),
-      blobs: this.physicsSimulator.getBlobStates(),
       field: this.physicsSimulator.getFieldSnapshot(),
+      dynamics: this.physicsSimulator.getDynamicsSnapshot(),
       constraint: this.getConstraintDescriptor(),
     };
   }

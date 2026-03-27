@@ -249,17 +249,9 @@ Currently supported keys:
 - `damping`
 - `temperature`
 
-### `getBlobStates()`
-
-Returns plain serializable blob snapshots.
-
 ### `getFieldSnapshot()`
 
 Returns the current scalar field values, bounds, and resolution.
-
-### `getFixedDeltaTimeMs()`
-
-Returns the configured fixed timestep in milliseconds.
 
 ## Config Overview
 
@@ -293,6 +285,11 @@ Defines:
 - global heating
 - cooling rate
 - diffusion rate
+- stochastic amplitude
+- stochastic frequency
+- bottom heating bias
+- top cooling bias
+- top cooling threshold
 
 ### `forces`
 

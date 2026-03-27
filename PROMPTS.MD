@@ -201,6 +201,76 @@ So the likely issue is not an “empty inside mesh” but that we are still read
 ## 2026-03-26
 
 ### User Prompt
+that was my first assumption indeed, we shall add more stochastic behaviour to the heating/cooling for motion to be the way it is; why you still support the lamp local space tho; elaborate
+
+### 3-Line Answer Summary
+Stochastic heating/cooling will help the motion, but it solves a different problem than coordinate framing.
+I still support lamp-local space because it is the clean contract between generic physics and model-specific geometry, especially once you have multiple lamp assets, masks, and mesh-derived boundaries.
+Without lamp-local space, every renderer, mask, and future asset integration has to guess axes and bounds again, which is exactly the coupling we are trying to avoid.
+
+## 2026-03-26
+
+### User Prompt
+cool walk me through the projections you planning to implement
+
+### 3-Line Answer Summary
+The plan is to define explicit transforms between `simulation-space` and `lamp-local-space`, then make all bounds, masks, and snapshots pass through that contract instead of doing ad hoc axis remaps in the frontend.
+Physics will still run in one canonical frame, but lamp geometry and future mesh masks will be authored in lamp-local coordinates and converted once at the core boundary.
+That gives you consistent multi-lamp support while keeping force equations stable and renderer code simpler.
+
+## 2026-03-26
+
+### User Prompt
+Implement it; go make sure the simulation works on OneLamp at the end
+
+### 3-Line Answer Summary
+I implemented a formal projection layer under `simulation/core/projections/`, normalized lamp-local bounds and blob seeds into simulation-space inside `PhysicsSimulator`, and added lamp-local blob export back out through `LavaLampRenderer`.
+`OneLamp` no longer performs ad hoc frontend remapping; it now configures a lamp-local coordinate frame in core and renders the returned lamp-local blobs directly against the model.
+TypeScript passes end-to-end, so the projection path is wired cleanly; visual tuning may still be needed, but the space contract now lives in core where it belongs.
+
+## 2026-03-26
+
+### User Prompt
+the blobs aren't located inside lava space the believe the projection values are wrong DEFAULT_INTERIOR_BOUNDS_HINT; + the blobs aren't moving try calculating the relative center in order to get the right coordinates
+
+### 3-Line Answer Summary
+I made the core projection center-aware by rotating lamp-local coordinates around the actual lava-volume center instead of around the global origin.
+`OneLamp` now builds the renderer from the loaded lava mesh bounds and center, and blob seeds are generated along the lamp-local axis that truly maps to simulation up instead of assuming local `y` is vertical.
+TypeScript passes again, so the scene now uses actual model-derived bounds plus thermal-axis-aware spawning rather than the old static default-hint assumption.
+
+## 2026-03-26
+
+### User Prompt
+is the lava mesh opacity changed through the code ? as it's lacking invisibiliy investigate
+
+### 3-Line Answer Summary
+Yes, the code explicitly overrides the GLB materials and sets the embedded lava mesh to `transparent: true` with `opacity: 0.2`, so its visibility is being changed in code.
+The glass mesh is also forced to `opacity: 0.22`, while the simulated blob spheres are much more visible at `opacity: 0.72`, which likely dominates what you are seeing.
+So the lack of invisibility is not coming from the asset alone; it is a deliberate material override in `OneLamp.state.ts` and `OneLamp.tsx`.
+
+## 2026-03-26
+
+### User Prompt
+rest of changes ?
+
+### 3-Line Answer Summary
+The last turn only investigated the visibility issue and did not yet implement the remaining requested patches.
+The pending changes are: make the embedded lava mesh effectively invisible, add stochastic thermal forcing, randomize blob spawning, improve mask fitting, and render the liquid surface.
+The next sensible batch is to finish the first two immediately so the scene becomes readable and the motion improves before working on masking and Marching Cubes.
+
+## 2026-03-26
+
+### User Prompt
+embedded lava mesh invisible as blobs aren't seen after first few motions and make the update to the stochastic terms for heat/cooling so we get the buoy effect; i also decided to remove the uniform state of the current blobs and turn the spawning position of blobs random; + move work on the mask to establish boundng boxes as it's completely inefficeint currently mappin a square on an oval/triangular shape; also the liquid filling the lamp isn't rendered give plan for all these patches
+
+### 3-Line Answer Summary
+The work should be split into five patches: hide the embedded lava reference mesh, improve motion with stochastic thermal forcing, randomize blob spawning, replace the crude box-fit with a tighter lamp-local masking volume, and finally render the liquid surface.
+The right order is to fix motion and spawning before spending time on masking and Marching Cubes, otherwise we will be tuning the wrong visual behavior.
+The liquid render should be a separate adapter stage fed by the scalar field, not mixed into the core physics patch that adds stochastic heating and mask prep.
+
+## 2026-03-26
+
+### User Prompt
 what do you suggest to fix the mismatch i want 2 options as i'm seeing projection as a possible one into the core
 
 ### 3-Line Answer Summary
@@ -217,3 +287,543 @@ i thought we have it generic in the physics simulator so we can support the opti
 Yes, the current simulator is generic enough to support Option 2, but only if we add a formal coordinate-system layer instead of scattering axis swaps across rendering and bounds code.
 The core change should introduce explicit transforms between simulation space and lamp-local space, then make boundaries, masks, renderer snapshots, and future lamp assets consume that contract consistently.
 The files to touch are the simulation contracts, the lamp abstraction, the renderer wrapper, and the physics types/config path; the actual force equations should stay unchanged.
+
+## 2026-03-26
+
+### User Prompt
+implement all patches
+
+### 3-Line Answer Summary
+I implemented the remaining experimental patch set: the embedded lava reference mesh is now effectively invisible, thermal evolution includes stochastic heating plus bottom-heating/top-cooling bias, and initial blobs now spawn randomly instead of from a uniform fixed layout.
+The crude full-box fit was replaced with a slice-based elliptical mask derived from the embedded lava mesh vertices, which is used both to clip the scalar field and to seed blob positions inside a tighter lamp-local volume.
+`OneLamp` now renders an actual liquid surface via `MarchingCubes` using the simulator field while keeping the core projection contract intact, and the updated code passes both `tsc` and targeted `eslint`.
+
+## 2026-03-26
+
+### User Prompt
+i believe the current model has an opacity problem as blobds tend to become invisible at certain stage eleminate the glass to perceive the result
+
+### 3-Line Answer Summary
+I removed the glass shell from the `OneLamp` experiment so it no longer interferes with visibility while you inspect the liquid motion.
+This is done at the mesh level by hiding the `Glass` mesh entirely rather than trying to tune its transparency again.
+The change is frontend-only and does not alter the physics core or projection logic.
+
+## 2026-03-26
+
+### User Prompt
+just add the liquid texture now and use our F function to add texture transformations inside it; what shading do you suggest for that; + the heat/cooling factors gap time should be amplified to allow high and lower duop
+
+### 3-Line Answer Summary
+I added a dynamics-driven liquid surface treatment by exposing lightweight force/temperature metrics from the simulator and using them to animate the Marching Cubes material with procedural internal flow bands.
+The shading direction is a translucent physical lava surface with shader-injected hot/cool color motion, which keeps real scene lighting while making the liquid read as active instead of flat orange geometry.
+I also slowed and amplified the thermal cycle so heating and cooling phases separate more clearly, giving stronger high/low buoyancy contrast without changing the overall projection architecture.
+
+## 2026-03-26
+
+### User Prompt
+the liquid color is still missing + inject parameter so we can control the gradiet color of liquid and blobs
+
+### 3-Line Answer Summary
+I added an explicit `colorGradient` parameter to `OneLamp` so the liquid surface and blob visuals now share a controllable palette instead of hardcoded oranges.
+The Marching Cubes shader now receives cool, warm, and hot tint uniforms and uses them for both diffuse gradient blending and emissive flow, which makes the liquid color materially visible.
+Blob debug spheres now also derive their color from the same gradient using blob temperature, so liquid and blobs stay visually coherent under one injected parameter.
+
+## 2026-03-26
+
+### User Prompt
+the liquid is still invisible
+
+### 3-Line Answer Summary
+I treated this as a surface-visibility problem rather than another palette problem and made the Marching Cubes liquid much harder to miss.
+The render path now boosts the scalar field before feeding MC, lowers the isosurface threshold, disables frustum culling, increases emissive strength, and hides the glass shell again.
+This keeps the same gradient system but makes the liquid render path materially denser and more opaque so the field should finally read on screen.
+
+## 2026-03-26
+
+### User Prompt
+seems like ou missunderstand the liquid for the blobs; turn back the blobs as they were the liquid should be filled within the glass container
+
+### 3-Line Answer Summary
+I separated the two concerns properly: the blobs are back to being simple debug markers, and the liquid body now gets its own base scalar-field contribution instead of relying on blob-only density.
+The field generation path now supports a `baseContribution`, and `OneLamp` uses it to create a continuous lower liquid mass shaped by the sliced lamp mask so the MC surface fills the container interior.
+I also restored the glass shell as a translucent material so you can perceive the liquid inside the lamp instead of looking at an isolated lava surface with no container.
+
+## 2026-03-26
+
+### User Prompt
+the blobs aren't visible anymore after this; + there is a lot of useless code in the state remove it
+
+### 3-Line Answer Summary
+I restored the blob markers as explicit debug overlays by rendering them above the liquid with disabled depth testing and a stronger visible material.
+I also removed dead experiment state that was no longer feeding rendering, including unused blob temperature data, unused lamp metadata, and the leftover blob-only gradient field.
+This keeps the liquid/base-fill work intact while making the debug markers readable again and trimming the `OneLamp` state path.
+
+## 2026-03-26
+
+### User Prompt
+the blob markers are visible but the marching cubes isn't running on them they are always empty fix it
+
+### 3-Line Answer Summary
+I changed the render-side MC generation to run directly from the visible blob markers plus a base liquid plane inside the lamp bounds, instead of relying on the copied scalar-field snapshot path that was not producing visible geometry.
+This also let me remove more useless render-space plumbing by dropping the unused matrix-based MC placement and using the lamp-local bounds directly in `OneLamp`.
+The result is a simpler render path: blobs remain explicit debug markers, while Marching Cubes now derives a continuous liquid body from those blobs and the container fill baseline.
+
+## 2026-03-26
+
+### User Prompt
+i like the clamping approach but this is causing extreme to extreme oscillations rather than the natural fluid move; you are not relying on the stochastic behaviour in the marching cubes and overriding the F function utility
+
+### 3-Line Answer Summary
+I moved the Marching Cubes surface back onto the simulator field so it now relies on the actual `F` utility again instead of a second renderer-built blob field.
+The render path now normalizes the active scalar field range into MC’s expected value band and uses the dynamics snapshot only to tune threshold and a very small modulation, which preserves the stochastic motion coming from the simulation rather than overriding it.
+This also removes the render-time base-plane/addBall override as the source of the liquid shape, which should reduce the extreme oscillation pattern you were seeing.
+
+## 2026-03-26
+
+### User Prompt
+hide the MC grid now keep just generation
+
+### 3-Line Answer Summary
+I hid the visible debug marker layer in the `OneLamp` scene so only the generated Marching Cubes liquid and lamp model remain.
+The simulation and field generation path are unchanged; this only removes the overlay that was exposing the MC driving points.
+This keeps the generated liquid output visible without the extra marker/grid clutter.
+
+## 2026-03-26
+
+### User Prompt
+now plug the projections so it's inside the glass as it is outside of it
+
+### 3-Line Answer Summary
+I corrected the MC placement by projecting the generated Marching Cubes vertices themselves from simulation space into lamp-local space after each update.
+The blob markers remain unchanged since they already render in lamp-local space, but the liquid surface no longer relies on a parent transform wrapper that was applying the wrong placement order.
+This keeps the `F`-driven field path intact while aligning the generated MC geometry to the glass container through point-wise projection rather than object-level wrapping.
+
+## 2026-03-26
+
+### User Prompt
+you didn't clean the code as requested
+
+### 3-Line Answer Summary
+I completed the cleanup pass by removing the leftover dead `OneLamp` state/types paths, trimming unused core APIs and projection helpers, and updating the physics README to match the current public surface.
+I also added top-of-method comments across the core simulation, registry, renderer, physics utility, and projection files so the code is readable again without having to reverse-engineer each function.
+Verification passed with `tsc` and targeted `eslint`, and the dead-symbol search returned no remaining matches for the removed paths.
+
+## 2026-03-26
+
+### User Prompt
+change the fixedDeltaTime to x4
+
+### 3-Line Answer Summary
+I changed the current `OneLamp` simulator config to use a fixed timestep that is 4x larger than before.
+This is applied locally in the lamp config as `fixedDeltaTimeMs: (1000 / 120) * 4`, rather than changing the physics core default for every future lamp.
+The effect is a slower, coarser simulation step for the current visualization only.
+
+## 2026-03-26
+
+### User Prompt
+it didn't change anything shows that it is glue code
+
+### 3-Line Answer Summary
+I corrected the actual thermal timing lever in the `OneLamp` experiment by restoring the fixed timestep to its normal value and slowing the hot/cool waveform instead.
+The visible heating and cooling cadence is controlled by `stochasticFrequency`, so it now uses an explicit `THERMAL_CYCLE_FREQUENCY = 0.18` instead of the previous faster `0.72`.
+Verification passed with `tsc` and targeted `eslint`, and the timing knob now lives in one clear place in `OneLamp.state.ts`.
+
+## 2026-03-26
+
+### User Prompt
+raise the number of grid on the top of the marching cubes (vertical line) so the generation reaches higher in the lamp as it is in a small distance and amplify the trigonometric oscillation indeed in the time script in core physics utils
+
+### 3-Line Answer Summary
+I increased the `OneLamp` field lattice density from `24` to `32` and raised the slice mask count from `30` to `40`, so the MC generation has more vertical sampling headroom and a less coarse lamp fit.
+I also amplified the core thermal oscillator in `physicsSimulatorTimeStep.ts` by expanding the sinusoidal blend beyond the old plateau-plus-secondary pair into a stronger four-wave combination.
+Verification passed with `tsc` and targeted `eslint`, so the render config and timestep utility are both consistent after the change.
+
+## 2026-03-26
+
+### User Prompt
+add config on canvas so i can browser with cursor
+
+### 3-Line Answer Summary
+I added cursor-driven orbit camera controls directly at the canvas root in `App.tsx` using `three/examples/jsm/controls/OrbitControls`.
+The controls include damping, rotation, zoom and pan speeds, distance limits, polar-angle limits, and a fixed target so you can inspect the lamp interactively with the mouse.
+Verification passed with `tsc` and targeted `eslint`, and no simulation or core files were touched for this patch.
+
+## 2026-03-26
+
+### User Prompt
+i noticed that the MC is so opaque it's seen just on 1 side
+
+### 3-Line Answer Summary
+I adjusted the `OneLamp` Marching Cubes material so it no longer behaves like an opaque one-sided shell.
+The liquid surface now renders `DoubleSide`, uses real transparency and transmission, lowers emissive intensity, and disables depth writes so both sides of the volume remain visible.
+Verification passed with `tsc` and targeted `eslint`, and the change is isolated to the liquid material setup in `OneLamp.tsx`.
+
+## 2026-03-26
+
+### User Prompt
+add more spread between blobs and make them bigger but sizes are stochastic
+
+### 3-Line Answer Summary
+I updated the `OneLamp` blob seeding so spawn points are more spread out, using a minimum-distance check with bounded retry attempts instead of allowing tight clustering.
+I also widened the spawn band and increased both `influenceRadius` and `strength` ranges so blobs start larger while still keeping their sizes stochastic.
+Verification passed with `tsc` and targeted `eslint`, and the change is isolated to the local seeding logic in `OneLamp.state.ts`.
+
+## 2026-03-26
+
+### User Prompt
+add light everywhere
+
+### 3-Line Answer Summary
+I expanded the canvas light rig in `App.tsx` so the lamp is illuminated from multiple directions instead of relying on a sparse front-biased setup.
+The scene now uses stronger ambient and hemisphere lighting plus extra directional, point, and spot lights to fill the sides, top, rear, and base of the lamp.
+Verification passed with `tsc` and targeted `eslint`, and the change is isolated to the scene lighting configuration.
+
+## 2026-03-26
+
+### User Prompt
+generate 2-3 more lamps and position them x next to each other with same gap
+
+### 3-Line Answer Summary
+I duplicated the `OneLamp` scene instance in `App.tsx` and laid out four lamps total on an evenly spaced x-axis row using a shared `LAMP_GAP` constant.
+I also widened the camera and orbit distance limits so the full lamp wall fits the viewport while keeping the control target centered on the row.
+Verification passed with `tsc` and targeted `eslint`, and the change is isolated to the app-level scene composition.
+
+## 2026-03-26
+
+### User Prompt
+light missing add light
+
+### 3-Line Answer Summary
+I rebalanced the `App.tsx` light rig for the wider lamp wall by increasing ambient and hemisphere fill, adding broad left/right directional lights, and mapping extra point lights across each lamp position.
+This spreads illumination across the full row instead of leaving the outer lamps underlit by a center-biased setup.
+Verification passed with `tsc` and targeted `eslint`, and the change is isolated to the scene lighting configuration.
+
+## 2026-03-27
+
+### User Prompt
+the lamps blobs are doing the same movement no stochastic differentiation + performance is horrible which was expected due to the continious generation what do you suggest to mitigate
+
+### 3-Line Answer Summary
+I identified the synchronization source: every `OneLamp` uses the same deterministic seed and the same blob ids, so the stochastic term and spawn layout are identical across lamps.
+I also identified the main performance costs: per-lamp React state updates every frame, full Marching Cubes rebuild/blur/update each frame, and post-update per-vertex projection work on every lamp.
+My recommendation is to first de-sync lamps with a per-instance seed/phase offset, then decouple simulation/render rates, and finally cache or reduce MC work instead of regenerating every lamp every frame.
+
+## 2026-03-27
+
+### User Prompt
+Indeed react shouldn't be used for any continious rerendering move all rerendering logic to web api (refs) no state update per rendering; reduce blur; lower the mc resolution; stop reprojecting every generated vertex (i'm thinking about getting rid of the projection logic and hardcoding the core again) critique my last thought and implement rest (change the lamp seed for randomness)
+
+### 3-Line Answer Summary
+I moved the `OneLamp` runtime path off React state into mutable refs, gave each lamp its own seed/blob id namespace, lowered the field resolution to `24`, reduced MC blur, and throttled MC regeneration to `20 Hz`.
+I also removed the per-vertex reprojection hot path by replacing it with one affine transform on the Marching Cubes object, so the projection contract stays at the renderer boundary without paying the old vertex rewrite cost every update.
+Hardcoding the core again would be the wrong shortcut because it turns one model-orientation quirk into solver logic; keeping the core canonical and applying a single render transform preserves multi-lamp support without the previous performance penalty.
+
+## 2026-03-27
+
+### User Prompt
+cool we achieved a functional simulation now i want to purge any unused code and we'll then move to the splitting of current utilities to build the atomic components and clean code
+
+### 3-Line Answer Summary
+I removed the actually dead code I could verify safely: the unused registry placement cache, the unused reverse-bounds projection helper, the unused blob export path from renderer/simulator snapshots, and the stale physics README section that still documented that removed API.
+Validation passed with `tsc` and full-project `eslint`, and the remaining dense code in `OneLamp.state.ts` and `OneLamp.tsx` is active orchestration rather than dead code.
+The next clean step is no longer deletion; it is splitting those active responsibilities into smaller utilities/components while preserving the now-working simulation path.
+
+## 2026-03-27
+
+### User Prompt
+okay we will remove App.tsx file as we stopped experimenting we will have simulation/ which will have a layout (set seo)  and page in it we will hve a components atomic design folder in which you will create Lamp component which replicates the OneLamp logic but optimizes the code and split it into atomic components/states/utils; then a Room component which loads the room.glb which is the main scene; we will build a roof of lamps 4 rows each row 4 lamps on the wall of the room (make sure to use script to find the wall ositioning) for the roof object make a rectange and color it with wood color to keep it simple ad put the lamps on it; remember state, types and tsx split; use the Simulation class to host all instances of lamps as we developped the logic for positioning split and to avoid duplication as much of it is present on the OneLamp state; give the plan and tell me if i forgot any details; (page calls the Simulation Component which loads the Room and AllLamps (which has multiple Lamp instances))
+
+### 3-Line Answer Summary
+I translated the target structure into an implementation plan centered on a new `/simulation` route, a scene-level `Simulation` component, a reusable `Lamp` component, a `Room` loader, and an `AllLamps` wall composition that uses the existing simulation registry instead of duplicating placement logic.
+I also called out the main missing details before implementation: the exact `room.glb` path/mesh names, which wall the 4x4 lamp roof should anchor to, how the wall-position script should expose its result, and whether the old root route should be deleted or redirected after `App.tsx` is removed.
+No structural code was changed in this step beyond logging, because you asked for the plan first.
+
+## 2026-03-27
+
+### User Prompt
+room.glb is on assets; any one of the walls except the one with the door and make sure camera init position facing the wall, / will have a landing page that can take to simulation and explains the project, one board per row, all lightning in simulation and the room should be with all lights sprad
+
+### 3-Line Answer Summary
+I updated the target architecture with your clarified scene rules: `room.glb` comes from `assets`, the lamp wall can be any non-door wall, the camera should start facing that wall, `/` becomes a landing page, and all lighting moves into the `Simulation` scene.
+The lamp support should use one wooden board per row, and the room lighting should be broadly distributed rather than centered around the lamps.
+With those constraints fixed, the next implementation step is the route/component split plus a wall-detection script to choose a valid mounting wall and compute the 4x4 lamp layout.
+
+## 2026-03-27
+
+### User Prompt
+go implement
+
+### 3-Line Answer Summary
+I implemented the route split and scene architecture: `/` is now a landing page, `/simulation` has its own layout/page, and the old `App.tsx` and `OneLamp` experiment files were removed.
+The simulation scene is now composed from `Simulation`, `Room`, `AllLamps`, and `Lamp` components with sibling state/types files, plus a `find-room-wall.mjs` script and a 4x4 wall-mounted lamp layout driven through the registry with one wooden board per row.
+Validation passed with `tsc` and full-project `eslint`, `room.glb` was copied to `public/`, and there are no remaining `App` or `OneLamp` references in the active code path.
+
+## 2026-03-27
+
+### User Prompt
+camera positioning is wrong; room is dark use AmbientLight gap between rows if to be bigger and move the roofs up as they are so low under room
+
+### 3-Line Answer Summary
+I corrected the initial simulation framing by raising the camera and target in `Simulation.state.ts` so the view faces the lamp wall more squarely instead of reading too low.
+I brightened the room in `Simulation.tsx` with stronger ambient, hemisphere, directional, and fill point lights, and I increased the lamp row spacing plus raised the wooden boards in `AllLamps.state.ts`.
+Verification passed with `tsc` and targeted `eslint`, and the adjustments are isolated to scene framing, lighting, and wall-layout spacing.
+
+## 2026-03-27
+
+### User Prompt
+remove limitation from camera movement
+
+### 3-Line Answer Summary
+I removed the `OrbitControls` camera clamps from `Simulation.tsx`, so the simulation view no longer restricts zoom distance or vertical orbit range.
+The camera still keeps damping, rotation, zoom, pan speed, and the initial wall-facing target, but movement is now otherwise unrestricted.
+Verification passed with `tsc` and targeted `eslint`, and the change is isolated to the simulation control layer.
+
+## 2026-03-27
+
+### User Prompt
+replace all point lights with ambient light to keep everything visible
+
+### 3-Line Answer Summary
+I removed the point lights from `Simulation.tsx` and increased the ambient fill so the room stays visible without localized hot spots.
+The scene now relies on stronger ambient light plus the existing broad hemisphere and directional lights instead of multiple point sources.
+Verification passed with `tsc` and targeted `eslint`, and the change is isolated to the simulation scene lighting.
+
+## 2026-03-27
+
+### User Prompt
+room texture missing (i removed the fog it is useless)
+
+### 3-Line Answer Summary
+I fixed the room material path in `Room.state.ts` so the GLB keeps its original textures instead of being replaced by flat `MeshStandardMaterial` overrides.
+The room prep now clones and tunes the loaded materials per mesh category, preserving texture maps while still adjusting roughness, metalness, and emissive values where needed.
+Verification passed with `tsc` and targeted `eslint`, and I did not reintroduce the fog you removed.
+
+## 2026-03-27
+
+### User Prompt
+scale the room to be bigger make the roof thicker and lower the gap between lamps (tht includes the gap after scaling should be lower than efore scaling) (current disposition with room small fits only 3 roofs) keep gap between
+
+### 3-Line Answer Summary
+I scaled the rendered room up in `Room.tsx`, increased the wooden board thickness in `AllLamps.state.ts`, and compressed the lamp wall’s horizontal and vertical span so the effective lamp gaps are tighter than before.
+The row and column spacing remain uniform, but the cluster now occupies a smaller portion of the wall, which gives all four rows more breathing room inside the enlarged room.
+Verification passed with `tsc` and targeted `eslint`, and the changes are isolated to room scale plus lamp-wall layout constants.
+
+## 2026-03-27
+
+### User Prompt
+make vertical gap bigger between lamps and move the lamps up since they collide with ground currently (sligthly make room bigger) gap vertically and horizontally between lamps should be same (
+
+### 3-Line Answer Summary
+I changed the lamp wall layout to use one shared `COMMON_LAMP_GAP` for both horizontal and vertical spacing, increased that vertical spacing relative to the previous layout, and shifted the whole lamp grid upward so the lower lamps clear the ground.
+I also nudged the room scale up again in `Room.tsx`, while keeping the board thickness and roof placement aligned with the new grid.
+Verification passed with `tsc` and targeted `eslint`, and the adjustments are isolated to the room scale plus lamp-wall spacing constants.
+
+## 2026-03-27
+
+### User Prompt
+this broke it all lamps are overlapping now
+
+### 3-Line Answer Summary
+I corrected the overlap by increasing the shared lamp spacing constant in `AllLamps.state.ts`, instead of keeping the overly compressed gap from the previous change.
+The lamp wall still preserves equal horizontal and vertical spacing, but the grid is no longer squeezed below the visible lamp footprint.
+Verification passed with `tsc` and targeted `eslint`, and the fix is isolated to the lamp-wall layout constant.
+
+## 2026-03-27
+
+### User Prompt
+split lamp.utils into sub files under lamp/utils the current file is not readable
+
+### 3-Line Answer Summary
+I split the old `Lamp.utils.ts` monolith into focused modules under `components/organisms/Lamp/utils`: `lampRenderer.ts`, `lampModel.ts`, `lampSurface.ts`, and an `index.ts` barrel.
+I updated the import sites to use the new utility folder and deleted the old unreadable utility file entirely.
+Verification passed with `tsc` and targeted `eslint`, and there are no remaining references to `Lamp.utils.ts`.
+
+## 2026-03-27
+
+### User Prompt
+the lamps are overlapping + lower count to 3 * 3 and superposition in the middle of wall with gap of equal to the lamp size horizontally and vertically
+
+### 3-Line Answer Summary
+I changed the lamp wall layout in `AllLamps.state.ts` from `4x4` to `3x3`, centered the whole grid on the target wall, and stopped using guessed spacing constants.
+The equal horizontal and vertical spacing is now derived from the real loaded lamp bounds, so the center-to-center gap scales from the lamp size instead of compressing the instances into overlap.
+Verification passed with `tsc` and targeted `eslint`, and the fix is isolated to the wall-layout state.
+
+## 2026-03-27
+
+### User Prompt
+keep just 3 x 2 + roof position should be transformed to half the lamp size down since it is positioned at lamp middle current
+
+### 3-Line Answer Summary
+I reduced the wall layout in `AllLamps.state.ts` from `3x3` to `3x2`.
+I also moved each roof board down by half the lamp height, so board placement is no longer anchored to the lamp center and instead sits relative to the top portion of each lamp row.
+Verification passed with `tsc` and targeted `eslint`, and the change is isolated to the lamp-wall layout state.
+
+## 2026-03-27
+
+### User Prompt
+extand the roof size to feel like a real parralelipide
+
+### 3-Line Answer Summary
+I increased the roof board dimensions in `AllLamps.state.ts` so each support reads as a real wooden parallelepiped instead of a thin strip.
+The board depth and height are both larger now, while the row placement logic stays unchanged.
+Verification passed with `tsc` and targeted `eslint`, and the change is isolated to the roof sizing constants.
+
+## 2026-03-27
+
+### User Prompt
+transform the all lamps up so they are centered on the wall and push them closer to the wall
+
+### 3-Line Answer Summary
+I moved the lamp wall upward in `AllLamps.state.ts` by adding a positive wall-centering Y offset to the vertical placement logic.
+I also reduced the wall depth offset so both the lamps and their boards sit closer to the wall surface.
+Verification passed with `tsc` and targeted `eslint`, and the change is isolated to the lamp-wall layout constants.
+
+## 2026-03-27
+
+### User Prompt
+nothing changed
+
+### 3-Line Answer Summary
+I found the real issue: the room was being scaled visually in `Room.tsx`, but the lamp wall positions were still computed from unscaled room bounds in `Room.state.ts`, which made placement tweaks appear ineffective.
+I fixed that by scaling the detected room bounds and wall values before building `wallMount`, then passing the same `roomScale` through to the `Room` render component so both room and lamp wall share the same coordinate frame.
+Verification passed with `tsc` and targeted `eslint`, and this corrects the underlying placement mismatch rather than just increasing the offsets again.
+
+## 2026-03-27
+
+### User Prompt
+i changed the room model apply the necessary changes (and scale it down as this one is big enough)
+
+### 3-Line Answer Summary
+I updated the room integration so the app now serves the new room asset by copying `assets/room.glb` over `public/room.glb`, which was previously stale and mismatched.
+I also reduced the applied room scale in `components/organisms/Room/Room.state.ts` from `1.36` to `0.9`, so the new room mounts smaller without changing the rest of the scene contract.
+Verification passed with `npx tsc --noEmit`, and the `assets/room.glb` and `public/room.glb` hashes now match exactly.
+
+## 2026-03-27
+
+### User Prompt
+replace the room with a custom made room using just three js objects (rectangals); (i changed some values for alllamp states keep those)
+
+### 3-Line Answer Summary
+I replaced the GLB-based room with a procedural room built from rectangular Three.js planes in `components/organisms/Room/Room.state.ts`, including floor, ceiling, the lamp wall, the opposite wall, one side wall, and a split door wall.
+The room still returns the same `wallMount` contract, so your current `AllLamps.state.ts` values were left untouched and continue to drive the lamp layout exactly as they are now.
+Verification passed with `npx tsc --noEmit` and targeted `eslint` on the room files.
+
+## 2026-03-27
+
+### User Prompt
+check the lamp glb to see the lamp size to realize that you just generated a box smaler than a single lamp instead of generating a room that will host enough lamps
+
+### 3-Line Answer Summary
+I checked the raw lamp GLB bounds and they are about `2.14 x 2.14 x 6.21`, which made the previous procedural room height of `5.2` clearly too small relative to a single lamp.
+I resized the procedural room in `components/organisms/Room/Room.state.ts` to a much larger envelope and updated `components/templates/Simulation/Simulation.state.ts` so the camera distance and target scale from the room bounds instead of using the old tight constants.
+Your current `AllLamps.state.ts` values were kept untouched, and verification passed with `npx tsc --noEmit` plus targeted `eslint`.
+
+## 2026-03-27
+
+### User Prompt
+still room is so small scale the current room size to x4 and center the lamps on a wall
+
+### 3-Line Answer Summary
+I scaled the procedural room dimensions in `components/organisms/Room/Room.state.ts` by `x4`, including the door dimensions so the proportions stay consistent with the larger room shell.
+I also centered the 3x2 lamp grid on the mount wall in `components/organisms/AllLamps/AllLamps.state.ts` by removing the extra upward offset and making the wall-centering Y offset neutral.
+Verification passed with `npx tsc --noEmit` and targeted `eslint` on the touched files.
+
+## 2026-03-27
+
+### User Prompt
+room color is white + instea do x4 do x2 (this got it too big)
+
+### 3-Line Answer Summary
+I reduced the procedural room from the previous `x4` size down to `x2` in `components/organisms/Room/Room.state.ts`, scaling the door dimensions down with it so the proportions stay coherent.
+I also darkened the wall, floor, and ceiling materials in that same file so the room no longer reads white under the current ambient lighting.
+Verification passed with `npx tsc --noEmit` and targeted `eslint` on the room state file.
+
+## 2026-03-27
+
+### User Prompt
+ambient light is missing
+
+### 3-Line Answer Summary
+I kept the ambient-only lighting approach and raised the scene ambient in `components/templates/Simulation/Simulation.tsx` so the room reads as lit again with the darker procedural materials.
+The ambient light now uses a warmer tint and higher intensity instead of reintroducing localized point lights.
+Verification passed with `npx tsc --noEmit` and targeted `eslint` on the simulation scene file.
+
+## 2026-03-27
+
+### User Prompt
+i changed the room color yet it is mixing some texture add it (wall texture)
+
+### 3-Line Answer Summary
+There was no standalone wall texture asset in the repo, so I added a procedural wall texture directly in `components/organisms/Room/Room.state.ts` and applied it to the wall material.
+The texture is a lightweight repeated canvas-based surface with subtle grain and seam lines, while floor and ceiling materials were left unchanged.
+Verification passed with `npx tsc --noEmit` and targeted `eslint` on the room state file.
+
+## 2026-03-27
+
+### User Prompt
+add rom roof texture
+
+### 3-Line Answer Summary
+I added a separate procedural ceiling texture in `components/organisms/Room/Room.state.ts` and applied it only to the roof material.
+The new roof texture reads like a tiled ceiling panel surface instead of sharing the flat room color treatment.
+Verification passed with `npx tsc --noEmit` and targeted `eslint` on the room state file.
+
+## 2026-03-27
+
+### User Prompt
+same for ground
+
+### 3-Line Answer Summary
+I added a separate procedural floor texture in `components/organisms/Room/Room.state.ts` and applied it only to the ground material.
+The ground now reads like a tiled concrete-style surface with seams and subtle speckling instead of sharing the flat room color treatment.
+Verification passed with `npx tsc --noEmit` and targeted `eslint` on the room state file.
+
+## 2026-03-27
+
+### User Prompt
+remove camera controls and keep camera just in front of lamps roofs
+
+### 3-Line Answer Summary
+I removed the interactive camera controls from `components/templates/Simulation/Simulation.tsx`, so the simulation now renders with a fixed camera only.
+I also updated `components/templates/Simulation/Simulation.state.ts` so the default camera sits closer to the lamp wall and targets the upper roof area instead of the room center.
+Verification passed with `npx tsc --noEmit` and targeted `eslint` on the simulation files.
+
+## 2026-03-27
+
+### User Prompt
+the positioning isn't locked on roofs as view with enough distance
+
+### 3-Line Answer Summary
+I fixed the camera framing by deriving the target and standoff distance from the actual lamp boards in `components/templates/Simulation/Simulation.state.ts` instead of from the room bounds.
+I also added an explicit locked camera effect in `components/templates/Simulation/Simulation.tsx` so the camera now applies both `position` and `lookAt`, which was the missing piece after removing `OrbitControls`.
+Verification passed with `npx tsc --noEmit` and targeted `eslint` on the simulation files.
+
+## 2026-03-27
+
+### User Prompt
+i did few change to position; move the camera a bit upper too (without changing perpective vertical movement)
+
+### 3-Line Answer Summary
+I kept your current manual camera offsets in `components/templates/Simulation/Simulation.state.ts` and added a small extra vertical lift on top of them.
+To preserve the existing vertical viewing angle, I raised both `camera.position.y` and `camera.target.y` by the same amount instead of moving only the camera.
+Verification passed with `npx tsc --noEmit` and targeted `eslint` on the simulation state file.
+
+## 2026-03-27
+
+### User Prompt
+the current blobs color is faded investigate why
+
+### 3-Line Answer Summary
+I traced the current lava/liquid render path and found the color fade comes from stacked transparency and transmission settings rather than from the simulation field itself.
+The main contributors are the glass material in `components/organisms/Lamp/utils/lampModel.ts`, the Marching Cubes material opacity/transmission in `components/organisms/Lamp/utils/lampSurface.ts`, and the strong white ambient light in `components/templates/Simulation/Simulation.tsx`.
+There are also no separate visible blob marker meshes anymore in `components/organisms/Lamp/Lamp.tsx`, so all perceived blob color now depends entirely on the translucent liquid surface.
+
+## 2026-03-27
+
+### User Prompt
+apply the 3 suggestions
+
+### 3-Line Answer Summary
+I strengthened the lamp glass tint and reduced its transmission in `components/organisms/Lamp/utils/lampModel.ts`, so the lamp shell no longer washes the liquid out as aggressively.
+I also made the liquid surface denser and brighter in `components/organisms/Lamp/utils/lampSurface.ts`, and warmed/lowered the ambient light in `components/templates/Simulation/Simulation.tsx` so the scene stops bleaching the lava color.
+Verification passed with `npx tsc --noEmit` and targeted `eslint` on the three touched files.

@@ -10,8 +10,8 @@ import type {
 
 export class LavaLampSimulationRegistry {
   private readonly renderers = new Map<string, LavaLampRenderer>();
-  private readonly placements = new Map<string, LavaLampPlacement>();
 
+  // Builds a row-based wall layout of renderer entries in O(n).
   static createWallEntries({
     createRenderer,
     lampIds,
@@ -54,35 +54,29 @@ export class LavaLampSimulationRegistry {
     return entries;
   }
 
+  // Seeds the registry with an optional set of renderer entries.
   constructor(entries: LavaLampRendererEntry[] = []) {
     for (const entry of entries) {
-      const placement = entry.renderer.placement;
-
       this.renderers.set(entry.lampId, entry.renderer);
-      this.placements.set(entry.lampId, placement);
     }
   }
 
+  // Adds or replaces one renderer entry in the registry.
   register(entry: LavaLampRendererEntry): void {
-    const placement = entry.renderer.placement;
-
     this.renderers.set(entry.lampId, entry.renderer);
-    this.placements.set(entry.lampId, placement);
   }
 
+  // Removes a renderer entry and its placement metadata.
   unregister(lampId: string): void {
     this.renderers.delete(lampId);
-    this.placements.delete(lampId);
   }
 
+  // Looks up one registered renderer by lamp id.
   get(lampId: string): LavaLampRenderer | undefined {
     return this.renderers.get(lampId);
   }
 
-  getPlacement(lampId: string): LavaLampPlacement | undefined {
-    return this.placements.get(lampId);
-  }
-
+  // Returns the full registry as a stable array snapshot.
   getAll(): RegisteredLavaLampRenderer[] {
     return Array.from(this.renderers.entries()).map(([lampId, renderer]) => ({
         lampId,
@@ -91,10 +85,7 @@ export class LavaLampSimulationRegistry {
       }));
   }
 
-  getPlacements(): Record<string, LavaLampPlacement> {
-    return Object.fromEntries(this.placements.entries());
-  }
-
+  // Resets every registered renderer in one pass.
   resetAll(): void {
     for (const renderer of this.renderers.values()) {
       renderer.reset();

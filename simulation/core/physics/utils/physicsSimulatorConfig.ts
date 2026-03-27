@@ -1,11 +1,19 @@
 import type { SimulationGuardrails } from "../../../contracts/simulation.types";
 import type {
+  PhysicsProjectionConfig,
   PhysicsBoundaryConfig,
   PhysicsFieldConfig,
   PhysicsSimulatorConfig,
   SimulationBounds,
 } from "../PhysicsSimulator.types";
+import {
+  createCoordinateFrame,
+  projectBoundsFromLampLocal,
+  projectPointToLampLocal,
+} from "../../projections/projection";
+import type { CoordinateFrame } from "../../projections/Projection.types";
 
+// Validates the minimum invariants required to build a simulator instance.
 export function assertPhysicsSimulatorConfig(
   config: PhysicsSimulatorConfig,
 ): void {
@@ -42,6 +50,7 @@ export function assertPhysicsSimulatorConfig(
   }
 }
 
+// Clones the mutable pieces of boundary config before normalization.
 export function cloneBoundaryConfig(
   config: PhysicsBoundaryConfig,
 ): PhysicsBoundaryConfig {
@@ -51,6 +60,7 @@ export function cloneBoundaryConfig(
   };
 }
 
+// Clones the mutable pieces of field config before normalization.
 export function cloneFieldConfig(config: PhysicsFieldConfig): PhysicsFieldConfig {
   return {
     ...config,
@@ -59,6 +69,7 @@ export function cloneFieldConfig(config: PhysicsFieldConfig): PhysicsFieldConfig
   };
 }
 
+// Creates a deep copy of a simulation bounds object.
 export function cloneBounds(bounds: SimulationBounds): SimulationBounds {
   return {
     min: { ...bounds.min },
@@ -66,6 +77,7 @@ export function cloneBounds(bounds: SimulationBounds): SimulationBounds {
   };
 }
 
+// Builds parameter guardrails from the initial simulator configuration.
 export function createGuardrails(
   config: PhysicsSimulatorConfig,
 ): SimulationGuardrails {
@@ -112,12 +124,82 @@ export function createGuardrails(
   };
 }
 
+// Clamps a scalar value to an inclusive range.
 export function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
+// Computes the number of cells needed for the current scalar field grid.
 export function getFieldCellCount(config: PhysicsFieldConfig): number {
   const { x, y, z } = config.resolution;
 
   return x * y * z;
+}
+
+// Resolves the coordinate frame used for projection-aware normalization.
+export function resolveCoordinateFrame(
+  projectionConfig?: PhysicsProjectionConfig,
+): CoordinateFrame {
+  return projectionConfig?.coordinateFrame ?? createCoordinateFrame();
+}
+
+// Normalizes boundary bounds into simulation space when lamp-local input is used.
+export function normalizeBoundaryConfig(
+  config: PhysicsBoundaryConfig,
+  simulatorConfig: PhysicsSimulatorConfig,
+): PhysicsBoundaryConfig {
+  return {
+    ...cloneBoundaryConfig(config),
+    bounds: normalizeBounds(config.bounds, simulatorConfig),
+  };
+}
+
+// Normalizes field bounds and callbacks into simulation space when needed.
+export function normalizeFieldConfig(
+  config: PhysicsFieldConfig,
+  simulatorConfig: PhysicsSimulatorConfig,
+): PhysicsFieldConfig {
+  const normalizedConfig = cloneFieldConfig(config);
+
+  normalizedConfig.bounds = normalizeBounds(config.bounds, simulatorConfig);
+
+  if (
+    normalizedConfig.mask &&
+    simulatorConfig.projection?.inputSpace === "lamp-local"
+  ) {
+    const coordinateFrame = resolveCoordinateFrame(simulatorConfig.projection);
+    const originalMask = normalizedConfig.mask;
+
+    normalizedConfig.mask = (point) =>
+      originalMask(
+        projectPointToLampLocal(point, coordinateFrame),
+      );
+  }
+
+  if (
+    normalizedConfig.baseContribution &&
+    simulatorConfig.projection?.inputSpace === "lamp-local"
+  ) {
+    const coordinateFrame = resolveCoordinateFrame(simulatorConfig.projection);
+    const originalBaseContribution = normalizedConfig.baseContribution;
+
+    normalizedConfig.baseContribution = (point) =>
+      originalBaseContribution(projectPointToLampLocal(point, coordinateFrame));
+  }
+
+  return normalizedConfig;
+}
+
+// Projects bounds into simulation space when the source input is lamp-local.
+export function normalizeBounds(
+  bounds: SimulationBounds,
+  simulatorConfig: PhysicsSimulatorConfig,
+): SimulationBounds {
+  if (simulatorConfig.projection?.inputSpace !== "lamp-local") {
+    return cloneBounds(bounds);
+  }
+
+  const coordinateFrame = resolveCoordinateFrame(simulatorConfig.projection);
+
+  return projectBoundsFromLampLocal(bounds, coordinateFrame);
 }

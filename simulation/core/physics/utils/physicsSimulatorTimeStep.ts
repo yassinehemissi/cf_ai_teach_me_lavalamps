@@ -14,14 +14,17 @@ type AdvanceBlobsArgs = {
   forceConfig: PhysicsForceConfig;
   temperatureConfig: PhysicsTemperatureConfig;
   deltaTimeSeconds: number;
+  simulationTimeSeconds: number;
 };
 
+// Advances every blob by one fixed simulation timestep.
 export function advanceBlobs({
   blobs,
   boundaryConfig,
   forceConfig,
   temperatureConfig,
   deltaTimeSeconds,
+  simulationTimeSeconds,
 }: AdvanceBlobsArgs): void {
   const averageTemperature = computeAverageTemperature(
     blobs,
@@ -32,8 +35,10 @@ export function advanceBlobs({
     updateBlobTemperature(
       blob,
       averageTemperature,
+      boundaryConfig,
       temperatureConfig,
       deltaTimeSeconds,
+      simulationTimeSeconds,
     );
 
     const force = computeTotalForce(
@@ -51,15 +56,44 @@ export function advanceBlobs({
   }
 }
 
+// Exposes the instantaneous total force for one blob without mutating state.
+export function computeBlobForceSnapshot(
+  blob: InternalBlobState,
+  boundaryConfig: PhysicsBoundaryConfig,
+  forceConfig: PhysicsForceConfig,
+  temperatureConfig: PhysicsTemperatureConfig,
+): Vector3 {
+  return computeTotalForce(
+    blob,
+    boundaryConfig,
+    forceConfig,
+    temperatureConfig,
+  );
+}
+
+// Evolves one blob temperature using global heating, vertical bias, and cooling.
 function updateBlobTemperature(
   blob: InternalBlobState,
   averageTemperature: number,
+  boundaryConfig: PhysicsBoundaryConfig,
   temperatureConfig: PhysicsTemperatureConfig,
   deltaTimeSeconds: number,
+  simulationTimeSeconds: number,
 ): void {
-  const heatInput = temperatureConfig.globalHeating;
+  const normalizedHeight = getNormalizedHeight(blob, boundaryConfig);
+  const bottomHeat = (1 - normalizedHeight) * temperatureConfig.bottomHeatingBias;
+  const topCooling =
+    Math.max(
+      normalizedHeight - temperatureConfig.topCoolingThreshold,
+      0,
+    ) * temperatureConfig.topCoolingBias;
+  const stochasticHeat =
+    computeStochasticThermalTerm(blob.id, simulationTimeSeconds, temperatureConfig) *
+    temperatureConfig.stochasticAmplitude;
+  const heatInput =
+    temperatureConfig.globalHeating + bottomHeat + stochasticHeat;
   const cooling =
-    temperatureConfig.coolingRate *
+    (temperatureConfig.coolingRate + topCooling) *
     (blob.temperature - temperatureConfig.ambientTemperature);
   const diffusion =
     temperatureConfig.diffusionRate * (blob.temperature - averageTemperature);
@@ -67,6 +101,7 @@ function updateBlobTemperature(
   blob.temperature += (heatInput - cooling - diffusion) * deltaTimeSeconds;
 }
 
+// Sums buoyancy, gravity, drag, and boundary forces for one blob.
 function computeTotalForce(
   blob: InternalBlobState,
   boundaryConfig: PhysicsBoundaryConfig,
@@ -87,6 +122,7 @@ function computeTotalForce(
   return buoyancyForce.add(gravityForce).add(dragForce).add(boundaryForce);
 }
 
+// Computes the buoyancy force from temperature delta relative to ambient.
 function computeBuoyancyForce(
   blob: InternalBlobState,
   forceConfig: PhysicsForceConfig,
@@ -102,6 +138,7 @@ function computeBuoyancyForce(
   return new Vector3(0, yForce, 0);
 }
 
+// Computes the downward gravity force for one blob.
 function computeGravityForce(
   blob: InternalBlobState,
   gravity: number,
@@ -109,6 +146,7 @@ function computeGravityForce(
   return new Vector3(0, -blob.mass * gravity, 0);
 }
 
+// Pushes blobs back inside the current boundary margin with damping.
 function computeBoundaryForce(
   blob: InternalBlobState,
   boundaryConfig: PhysicsBoundaryConfig,
@@ -151,6 +189,7 @@ function computeBoundaryForce(
   return force;
 }
 
+// Projects blobs back inside hard bounds after integration drift.
 function projectBlobInsideBoundary(
   blob: InternalBlobState,
   boundaryConfig: PhysicsBoundaryConfig,
@@ -177,6 +216,7 @@ function projectBlobInsideBoundary(
   }
 }
 
+// Computes the mean blob temperature used for cheap diffusion behavior.
 function computeAverageTemperature(
   blobs: InternalBlobState[],
   ambientTemperature: number,
@@ -191,4 +231,56 @@ function computeAverageTemperature(
   );
 
   return totalTemperature / blobs.length;
+}
+
+// Computes normalized simulation-space height for thermal bias calculations.
+function getNormalizedHeight(
+  blob: InternalBlobState,
+  boundaryConfig: PhysicsBoundaryConfig,
+): number {
+  const span = boundaryConfig.bounds.max.y - boundaryConfig.bounds.min.y;
+
+  if (span <= 0) {
+    return 0.5;
+  }
+
+  return Math.min(
+    Math.max((blob.position.y - boundaryConfig.bounds.min.y) / span, 0),
+    1,
+  );
+}
+
+// Generates a deterministic low-frequency thermal variation per blob id.
+function computeStochasticThermalTerm(
+  blobId: string,
+  simulationTimeSeconds: number,
+  temperatureConfig: PhysicsTemperatureConfig,
+): number {
+  const phase = hashBlobId(blobId) * Math.PI * 2;
+  const time = simulationTimeSeconds * temperatureConfig.stochasticFrequency;
+  const primaryWave = Math.sin(time + phase);
+  const plateauWave =
+    Math.sign(primaryWave) * Math.pow(Math.abs(primaryWave), 0.42);
+  const secondaryWave = Math.sin(time * 0.21 + phase * 0.63);
+  const surgeWave = Math.sin(time * 0.47 - phase * 0.31);
+  const torsionWave = Math.sin(time * 1.16 + phase * 1.37);
+
+  return (
+    plateauWave * 0.88 +
+    secondaryWave * 0.24 +
+    surgeWave * 0.17 +
+    torsionWave * 0.08
+  );
+}
+
+// Hashes a blob id into a stable [0, 1] phase seed.
+function hashBlobId(blobId: string): number {
+  let hash = 2166136261;
+
+  for (let index = 0; index < blobId.length; index += 1) {
+    hash ^= blobId.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+
+  return (hash >>> 0) / 4294967295;
 }

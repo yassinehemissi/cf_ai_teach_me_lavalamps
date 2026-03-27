@@ -11,6 +11,7 @@ type RebuildScalarFieldArgs = {
   target: Float32Array;
 };
 
+// Rebuilds the full scalar field grid from the current blob state and base field.
 export function rebuildScalarField({
   blobs,
   fieldConfig,
@@ -47,13 +48,20 @@ export function rebuildScalarField({
           continue;
         }
 
-        target[index] = computeScalarFieldValue(point, blobs, fieldConfig.epsilon);
+        target[index] =
+          computeScalarFieldValue(point, blobs, fieldConfig.epsilon) +
+          (fieldConfig.baseContribution?.({
+            x: point.x,
+            y: point.y,
+            z: point.z,
+          }) ?? 0);
         index += 1;
       }
     }
   }
 }
 
+// Accumulates blob and base-field contributions at one scalar field sample point.
 function computeScalarFieldValue(
   point: Vector3,
   blobs: InternalBlobState[],
@@ -75,6 +83,7 @@ function computeScalarFieldValue(
   return value;
 }
 
+// Computes the per-cell spacing along one grid axis.
 function getAxisStep(min: number, max: number, resolution: number): number {
   if (resolution <= 1) {
     return 0;

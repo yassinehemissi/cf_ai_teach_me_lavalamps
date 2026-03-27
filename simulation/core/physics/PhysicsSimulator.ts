@@ -8,12 +8,12 @@ import {
   type LavaLampPlacement,
 } from "../LavaLampSimulation";
 import type {
-  BlobState,
   InternalBlobState,
   PhysicsBoundaryConfig,
   PhysicsFieldConfig,
   PhysicsForceConfig,
   PhysicsSimulatorConfig,
+  SimulationDynamicsSnapshot,
   PhysicsTemperatureConfig,
   ScalarFieldSnapshot,
 } from "./PhysicsSimulator.types";
@@ -21,21 +21,25 @@ import {
   assertPhysicsSimulatorConfig,
   clamp,
   cloneBounds,
-  cloneBoundaryConfig,
-  cloneFieldConfig,
   createGuardrails,
   getFieldCellCount,
+  normalizeBoundaryConfig,
+  normalizeFieldConfig,
 } from "./utils/physicsSimulatorConfig";
 import { rebuildScalarField } from "./utils/physicsSimulatorField";
 import {
   cloneInternalBlobs,
   createInternalBlobState,
-  toBlobState,
 } from "./utils/physicsSimulatorState";
-import { advanceBlobs } from "./utils/physicsSimulatorTimeStep";
+import {
+  advanceBlobs,
+  computeBlobForceSnapshot,
+} from "./utils/physicsSimulatorTimeStep";
 
 export class PhysicsSimulator extends LavaLampSimulation {
+  // Defines the default fixed simulation step used for stable integration.
   private static readonly DEFAULT_FIXED_DELTA_TIME_MS = 1000 / 120;
+  // Caps the amount of catch-up work performed per external frame.
   private static readonly DEFAULT_MAX_SUBSTEPS = 8;
 
   private readonly boundaryConfig: PhysicsBoundaryConfig;
@@ -49,15 +53,17 @@ export class PhysicsSimulator extends LavaLampSimulation {
   private readonly fieldValues: Float32Array;
 
   private accumulatedTimeMs = 0;
+  private simulationTimeSeconds = 0;
   private blobs: InternalBlobState[];
 
+  // Initializes the simulator, normalizes config, and builds the first field snapshot.
   constructor(placement: LavaLampPlacement, config: PhysicsSimulatorConfig) {
     super(placement);
 
     assertPhysicsSimulatorConfig(config);
 
-    this.boundaryConfig = cloneBoundaryConfig(config.boundary);
-    this.fieldConfig = cloneFieldConfig(config.field);
+    this.boundaryConfig = normalizeBoundaryConfig(config.boundary, config);
+    this.fieldConfig = normalizeFieldConfig(config.field, config);
     this.forceConfig = { ...config.forces };
     this.temperatureConfig = { ...config.temperature };
     this.guardrails = createGuardrails(config);
@@ -67,7 +73,7 @@ export class PhysicsSimulator extends LavaLampSimulation {
     this.maxSubsteps =
       config.time?.maxSubsteps ?? PhysicsSimulator.DEFAULT_MAX_SUBSTEPS;
     this.initialBlobs = config.initialBlobs.map((blob) =>
-      createInternalBlobState(blob, config.defaultBlobMass ?? 1),
+      createInternalBlobState(blob, config.defaultBlobMass ?? 1, config),
     );
     this.blobs = cloneInternalBlobs(this.initialBlobs);
     this.fieldValues = new Float32Array(getFieldCellCount(this.fieldConfig));
@@ -75,12 +81,15 @@ export class PhysicsSimulator extends LavaLampSimulation {
     this.rebuildFieldSnapshot();
   }
 
+  // Restores blobs, time accumulation, and scalar field state to the initial snapshot.
   reset(): void {
     this.accumulatedTimeMs = 0;
+    this.simulationTimeSeconds = 0;
     this.blobs = cloneInternalBlobs(this.initialBlobs);
     this.rebuildFieldSnapshot();
   }
 
+  // Advances the simulation with fixed-size internal substeps for stability.
   step(input: SimulationStepInput): void {
     if (!Number.isFinite(input.deltaTimeMs) || input.deltaTimeMs <= 0) {
       return;
@@ -105,7 +114,9 @@ export class PhysicsSimulator extends LavaLampSimulation {
         forceConfig: this.forceConfig,
         temperatureConfig: this.temperatureConfig,
         deltaTimeSeconds: this.fixedDeltaTimeMs / 1000,
+        simulationTimeSeconds: this.simulationTimeSeconds,
       });
+      this.simulationTimeSeconds += this.fixedDeltaTimeMs / 1000;
       this.accumulatedTimeMs -= this.fixedDeltaTimeMs;
       substeps += 1;
     }
@@ -115,6 +126,7 @@ export class PhysicsSimulator extends LavaLampSimulation {
     }
   }
 
+  // Applies one external parameter update while respecting configured guardrails.
   setParameter(update: SimulationParameterUpdate): void {
     const guardrail = this.guardrails[update.key];
     const clampedValue = clamp(update.value, guardrail.min, guardrail.max);
@@ -135,10 +147,7 @@ export class PhysicsSimulator extends LavaLampSimulation {
     }
   }
 
-  getBlobStates(): BlobState[] {
-    return this.blobs.map((blob) => toBlobState(blob));
-  }
-
+  // Returns a defensive copy of the current scalar field snapshot.
   getFieldSnapshot(): ScalarFieldSnapshot {
     return {
       bounds: cloneBounds(this.fieldConfig.bounds),
@@ -147,10 +156,52 @@ export class PhysicsSimulator extends LavaLampSimulation {
     };
   }
 
-  getFixedDeltaTimeMs(): number {
-    return this.fixedDeltaTimeMs;
+  // Summarizes the current simulation energy/temperature state for rendering decisions.
+  getDynamicsSnapshot(): SimulationDynamicsSnapshot {
+    if (this.blobs.length === 0) {
+      return {
+        averageForceMagnitude: 0,
+        averageTemperature: this.temperatureConfig.ambientTemperature,
+        temperatureSpread: 0,
+        averageVerticalVelocity: 0,
+      };
+    }
+
+    const totalTemperature = this.blobs.reduce(
+      (sum, blob) => sum + blob.temperature,
+      0,
+    );
+    const averageTemperature = totalTemperature / this.blobs.length;
+    const averageForceMagnitude =
+      this.blobs.reduce(
+        (sum, blob) =>
+          sum +
+          computeBlobForceSnapshot(
+            blob,
+            this.boundaryConfig,
+            this.forceConfig,
+            this.temperatureConfig,
+          ).length(),
+        0,
+      ) / this.blobs.length;
+    const averageVerticalVelocity =
+      this.blobs.reduce((sum, blob) => sum + blob.velocity.y, 0) /
+      this.blobs.length;
+    const temperatureSpread =
+      this.blobs.reduce(
+        (sum, blob) => sum + Math.abs(blob.temperature - averageTemperature),
+        0,
+      ) / this.blobs.length;
+
+    return {
+      averageForceMagnitude,
+      averageTemperature,
+      temperatureSpread,
+      averageVerticalVelocity,
+    };
   }
 
+  // Rebuilds the scalar field from the current blob state.
   private rebuildFieldSnapshot(): void {
     rebuildScalarField({
       blobs: this.blobs,

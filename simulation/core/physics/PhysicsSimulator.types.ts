@@ -1,6 +1,10 @@
 import { Vector3 } from "three";
 
 import type { SimulationGuardrails } from "../../contracts/simulation.types";
+import type {
+  CoordinateFrame,
+  CoordinateSpace,
+} from "../projections/Projection.types";
 
 export type Vector3Like = {
   x: number;
@@ -43,6 +47,11 @@ export type PhysicsTemperatureConfig = {
   globalHeating: number;
   coolingRate: number;
   diffusionRate: number;
+  stochasticAmplitude: number;
+  stochasticFrequency: number;
+  bottomHeatingBias: number;
+  topCoolingBias: number;
+  topCoolingThreshold: number;
 };
 
 export type PhysicsForceConfig = {
@@ -65,17 +74,24 @@ export type FieldResolution = {
 };
 
 export type FieldMaskResolver = (point: Vector3Like) => boolean;
+export type FieldContributionResolver = (point: Vector3Like) => number;
 
 export type PhysicsFieldConfig = {
   bounds: SimulationBounds;
   resolution: FieldResolution;
   epsilon: number;
   mask?: FieldMaskResolver;
+  baseContribution?: FieldContributionResolver;
 };
 
 export type PhysicsTimeConfig = {
   fixedDeltaTimeMs?: number;
   maxSubsteps?: number;
+};
+
+export type PhysicsProjectionConfig = {
+  coordinateFrame?: CoordinateFrame;
+  inputSpace?: CoordinateSpace;
 };
 
 export type PhysicsSimulatorConfig = {
@@ -85,6 +101,7 @@ export type PhysicsSimulatorConfig = {
   temperature: PhysicsTemperatureConfig;
   forces: PhysicsForceConfig;
   time?: PhysicsTimeConfig;
+  projection?: PhysicsProjectionConfig;
   guardrails?: Partial<SimulationGuardrails>;
   defaultBlobMass?: number;
 };
@@ -93,4 +110,11 @@ export type ScalarFieldSnapshot = {
   bounds: SimulationBounds;
   resolution: FieldResolution;
   values: Float32Array;
+};
+
+export type SimulationDynamicsSnapshot = {
+  averageForceMagnitude: number;
+  averageTemperature: number;
+  temperatureSpread: number;
+  averageVerticalVelocity: number;
 };
