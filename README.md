@@ -35,6 +35,49 @@ It is a demo and an experiment, not a cleaned final product or a reviewed securi
 - `bcrypt`
 - `react-katex`
 
+## Running
+
+```bash
+bun install
+bun dev
+```
+
+Open `http://localhost:3000` after the dev server starts.
+
+## Usage
+
+### D1
+
+Create the auth tables:
+
+```sql
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  email VARCHAR(255) NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE quotas (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  quota INTEGER NOT NULL DEFAULT 0,
+  max_quota INTEGER NOT NULL DEFAULT 100,
+  reset_at DATETIME NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(user_id)
+);
+```
+
+### Vectorize
+
+Example index commands with Wrangler:
+
+```bash
+wrangler vectorize create <YOUR_MEMORY_INDEX> --dimensions=768 --metric=cosine
+```
+
 ## Features
 
 - Simplified lava-lamp physics with bounded runtime parameter updates
@@ -56,6 +99,10 @@ It is a demo and an experiment, not a cleaned final product or a reviewed securi
 - The codebase is not yet fully cleaned, fully reviewed, or fully hardened.
 - The physics model is intentionally simplified for demonstration purposes.
 - The entropy workflow is illustrative and should not be treated as a standalone production randomness system.
+
+## Credits
+
+- Lava lamp model: [Sketchfab - Lava Lamp](https://sketchfab.com/3d-models/lava-lamp-e8c41a8bdce84b599dd4d83293cbff6d)
 
 ## Author
 

@@ -1455,3 +1455,33 @@ modify landing text accordingly
 I updated the landing-page copy to match the README’s algorithm framing.
 The homepage now describes the project in terms of physics-inspired motion, frame-based entropy with timing jitter, and the bounded AI agent layer, while keeping the existing simple layout unchanged.
 The change was limited to landing-page text.
+
+## 2026-03-27
+
+### User Prompt
+add lavalamp model credits https://sketchfab.com/3d-models/lava-lamp-e8c41a8bdce84b599dd4d83293cbff6d in readme
+
+### 3-Line Answer Summary
+I added a `Credits` section to the README.
+It now includes the lava lamp model attribution with the Sketchfab link you provided.
+This was a README-only documentation change.
+
+## 2026-03-27
+
+### User Prompt
+for usage add the d1 and vectorizer query for d1 and wrangler for index for vectorize and add bun commands in running + add .env.example
+
+### 3-Line Answer Summary
+I updated the README with a `Running` section using Bun, plus example Wrangler commands for D1 queries and Vectorize index creation/listing.
+I also added a project `.env.example` file populated with the environment variable names actually used by the auth and AI runtime code.
+This was a documentation and setup-template update only.
+
+## 2026-03-27
+
+### User Prompt
+i meant add D1 SQL creation queries of our quota and users tables
+
+### 3-Line Answer Summary
+I corrected the README usage section to include the actual SQL schema creation queries for the `users` and `quotas` tables.
+I also added a Wrangler example showing how to execute a schema file against the D1 database.
+This was a README-only documentation correction.
