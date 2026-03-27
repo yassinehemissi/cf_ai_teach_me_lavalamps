@@ -8,17 +8,23 @@ import {
 } from "@/lib/server/auth/credentials";
 import { setSessionCookie } from "@/lib/server/auth/session";
 import { createUser, findUserByEmail } from "@/lib/server/auth/users";
+import { signUpRequestSchema } from "./route.schema";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as {
-      email?: unknown;
-      password?: unknown;
-    };
-    const email = normalizeEmail(body.email);
-    const password = normalizePassword(body.password);
+    const body = signUpRequestSchema.safeParse(await request.json());
+
+    if (!body.success) {
+      return NextResponse.json(
+        { error: "The request body must include only email and password." },
+        { status: 400 },
+      );
+    }
+
+    const email = normalizeEmail(body.data.email);
+    const password = normalizePassword(body.data.password);
     const validationError = validateCredentials(email, password);
 
     if (validationError) {
