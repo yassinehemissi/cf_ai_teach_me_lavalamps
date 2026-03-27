@@ -5,18 +5,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchChatQuota,
   sendChatRequest,
-  syncChatUsage,
 } from "../../actions/chat.actions";
 import type { ChatMessage } from "../../types/chat.types";
 import type { ChatWindowProps, ChatWindowState } from "./ChatWindow.types";
 import {
-  CHAT_USAGE_SYNC_DEBOUNCE_MS,
   MAX_DAILY_CHAT_MESSAGES,
   MAX_CHAT_USER_MESSAGE_LENGTH,
 } from "@/ai/constants/chat.constants";
 
 const LOCAL_CHAT_USAGE_STORAGE_KEY = "ai-chat-local-usage";
-const PENDING_CHAT_USAGE_STORAGE_KEY = "ai-chat-pending-usage";
 
 export function useChatWindowState({
   getEntropyContext,
@@ -26,10 +23,7 @@ export function useChatWindowState({
   ChatWindowProps,
   "getEntropyContext" | "onEntropyCommand" | "onSimulationCommand"
 >) {
-  const flushPendingUsageRef = useRef<() => Promise<void>>(async () => {});
   const localUsageCountRef = useRef(0);
-  const pendingUsageRef = useRef(0);
-  const syncTimeoutRef = useRef<number | null>(null);
   const [state, setState] = useState<ChatWindowState>({
     error: null,
     entropyContextUsed: false,
@@ -42,44 +36,6 @@ export function useChatWindowState({
     messages: [],
     retrievedTools: [],
   });
-
-  const scheduleUsageSync = useCallback(() => {
-    if (
-      typeof window === "undefined" ||
-      pendingUsageRef.current <= 0 ||
-      syncTimeoutRef.current !== null
-    ) {
-      return;
-    }
-
-    syncTimeoutRef.current = window.setTimeout(() => {
-      syncTimeoutRef.current = null;
-      void flushPendingUsageRef.current();
-    }, CHAT_USAGE_SYNC_DEBOUNCE_MS);
-  }, []);
-
-  const flushPendingUsage = useCallback(async () => {
-    if (pendingUsageRef.current <= 0) {
-      return;
-    }
-
-    const usageCount = pendingUsageRef.current;
-
-    pendingUsageRef.current = 0;
-    persistPendingUsage(0);
-
-    try {
-      await syncChatUsage(usageCount);
-    } catch {
-      pendingUsageRef.current += usageCount;
-      persistPendingUsage(pendingUsageRef.current);
-      scheduleUsageSync();
-    }
-  }, [scheduleUsageSync]);
-
-  useEffect(() => {
-    flushPendingUsageRef.current = flushPendingUsage;
-  }, [flushPendingUsage]);
 
   const hydrateQuotaFromServer = useCallback(async () => {
     try {
@@ -107,7 +63,6 @@ export function useChatWindowState({
     const localUsageCount = readLocalUsageCount();
 
     localUsageCountRef.current = localUsageCount ?? 0;
-    pendingUsageRef.current = readPendingUsage();
 
     if (localUsageCount !== null) {
       setState((currentState) => ({
@@ -118,17 +73,7 @@ export function useChatWindowState({
     } else {
       void hydrateQuotaFromServer();
     }
-
-    if (pendingUsageRef.current > 0) {
-      scheduleUsageSync();
-    }
-
-    return () => {
-      if (syncTimeoutRef.current !== null) {
-        window.clearTimeout(syncTimeoutRef.current);
-      }
-    };
-  }, [hydrateQuotaFromServer, scheduleUsageSync]);
+  }, [hydrateQuotaFromServer]);
 
   const setInput = useCallback((input: string) => {
     setState((currentState) => ({
@@ -205,10 +150,7 @@ export function useChatWindowState({
       const nextUsageCount = localUsageCountRef.current + 1;
 
       localUsageCountRef.current = nextUsageCount;
-      pendingUsageRef.current += 1;
       persistLocalUsageCount(nextUsageCount);
-      persistPendingUsage(pendingUsageRef.current);
-      scheduleUsageSync();
 
       setState((currentState) => ({
         ...currentState,
@@ -239,7 +181,6 @@ export function useChatWindowState({
     getEntropyContext,
     onEntropyCommand,
     onSimulationCommand,
-    scheduleUsageSync,
     state.input,
     state.isSubmitting,
     state.isQuotaReady,
@@ -252,28 +193,6 @@ export function useChatWindowState({
     setInput,
     submit,
   };
-}
-
-function readPendingUsage() {
-  if (typeof window === "undefined") {
-    return 0;
-  }
-
-  const rawValue = window.sessionStorage.getItem(PENDING_CHAT_USAGE_STORAGE_KEY);
-  const parsedValue = rawValue ? Number.parseInt(rawValue, 10) : 0;
-
-  return Number.isFinite(parsedValue) && parsedValue > 0 ? parsedValue : 0;
-}
-
-function persistPendingUsage(usageCount: number) {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.sessionStorage.setItem(
-    PENDING_CHAT_USAGE_STORAGE_KEY,
-    String(Math.max(0, usageCount)),
-  );
 }
 
 function readLocalUsageCount() {

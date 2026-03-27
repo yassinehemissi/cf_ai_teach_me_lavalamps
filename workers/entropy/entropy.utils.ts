@@ -4,33 +4,41 @@ import type {
   EntropyWorkerSuccessResponse,
 } from "./entropy.types";
 
-export function createEntropyWorker() {
+let sharedEntropyWorker: Worker | null = null;
+
+function createEntropyWorker() {
   return new Worker(new URL("./entropy.worker.ts", import.meta.url), {
     type: "module",
   });
 }
 
-export async function extractEntropyFromDataUri(
+function getSharedEntropyWorker() {
+  if (sharedEntropyWorker) {
+    return sharedEntropyWorker;
+  }
+
+  sharedEntropyWorker = createEntropyWorker();
+
+  return sharedEntropyWorker;
+}
+
+export async function extractEntropyFromBitmap(
   request: EntropyWorkerRequest,
   worker?: Worker,
 ) {
-  const normalizedRequest: EntropyWorkerRequest = {
-    ...request,
-    dataUri: request.dataUri.trim(),
-  };
-
-  if (!normalizedRequest.dataUri.startsWith("data:")) {
-    throw new Error("Entropy worker request is missing a valid data URI.");
+  if (!(request.sourceBitmap instanceof ImageBitmap)) {
+    throw new Error("Entropy worker request is missing a valid source bitmap.");
   }
 
-  const activeWorker = worker ?? createEntropyWorker();
-  const shouldTerminateWorker = worker === undefined;
+  const usingSharedWorker = worker === undefined;
+  const activeWorker = worker ?? getSharedEntropyWorker();
+  const shouldTerminateWorker = !usingSharedWorker;
 
   return new Promise<EntropyWorkerSuccessResponse>((resolve, reject) => {
     const handleMessage = (event: MessageEvent<EntropyWorkerResponse>) => {
       const response = event.data;
 
-      if (response.requestId !== normalizedRequest.requestId) {
+      if (response.requestId !== request.requestId) {
         return;
       }
 
@@ -60,9 +68,7 @@ export async function extractEntropyFromDataUri(
 
     const transferables: Transferable[] = [];
 
-    if (request.lavaBytes) {
-      transferables.push(request.lavaBytes);
-    }
+    transferables.push(request.sourceBitmap);
 
     if (request.externalEntropyBytes) {
       transferables.push(request.externalEntropyBytes);
@@ -70,6 +76,7 @@ export async function extractEntropyFromDataUri(
 
     activeWorker.addEventListener("message", handleMessage);
     activeWorker.addEventListener("error", handleError);
-    activeWorker.postMessage(normalizedRequest, transferables);
+
+    activeWorker.postMessage(request, transferables);
   });
 }

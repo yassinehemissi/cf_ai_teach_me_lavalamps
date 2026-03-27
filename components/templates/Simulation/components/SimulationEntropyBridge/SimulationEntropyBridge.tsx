@@ -29,21 +29,25 @@ export function SimulationEntropyBridge({
 
         const externalEntropyBytes = await buildDemoExternalEntropyBytes(frameIndex);
         const externalEntropyBytesLength = externalEntropyBytes.byteLength;
-        const { dataUri, result } = await extractSceneEntropy(gl, scene, camera, {
-          externalEntropyBytes,
-          resize: {
-            maxHeight: 128,
-            maxWidth: 128,
-            smoothingQuality: "high",
+        const { result, screenshotByteLength, screenshotUrl } = await extractSceneEntropy(
+          gl,
+          scene,
+          camera,
+          {
+            externalEntropyBytes,
+            resize: {
+              maxHeight: 128,
+              maxWidth: 128,
+              smoothingQuality: "high",
+            },
           },
-        });
+        );
 
         frameResults.push({
-          dataUriLength: dataUri.length,
           externalEntropyBytesLength,
           frameIndex,
-          lavaBytesLength: 0,
-          screenshotDataUri: dataUri,
+          screenshotByteLength,
+          screenshotUrl,
           workerResult: result,
         });
       }
@@ -64,7 +68,6 @@ export function SimulationEntropyBridge({
         frameCount,
         frames: frameResults,
         totalExternalEntropyBytesLength,
-        totalLavaBytesLength: 0,
       };
     };
 
@@ -77,4 +80,3 @@ export function SimulationEntropyBridge({
 
   return null;
 }
-

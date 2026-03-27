@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import type {
   EntropyCaptureAction,
@@ -16,6 +16,7 @@ const MIN_FRAME_COUNT = 1;
 
 export function useSimulationEntropyState() {
   const captureActionRef = useRef<EntropyCaptureAction | null>(null);
+  const previousSummaryRef = useRef<EntropyModalSummary | null>(null);
   const [state, setState] = useState<SimulationEntropyState>({
     error: null,
     frameCount: DEFAULT_FRAME_COUNT,
@@ -50,6 +51,25 @@ export function useSimulationEntropyState() {
       isModalOpen: false,
     }));
   }, []);
+
+  useEffect(() => {
+    const previousSummary = previousSummaryRef.current;
+
+    if (previousSummary && previousSummary !== state.summary) {
+      revokeSummaryScreenshotUrls(previousSummary);
+    }
+
+    previousSummaryRef.current = state.summary;
+  }, [state.summary]);
+
+  useEffect(
+    () => () => {
+      if (previousSummaryRef.current) {
+        revokeSummaryScreenshotUrls(previousSummaryRef.current);
+      }
+    },
+    [],
+  );
 
   const executeEntropyCapture = useCallback(async (requestedFrameCount: number) => {
     const captureAction = captureActionRef.current;
@@ -128,7 +148,6 @@ function buildEntropySummary({
   frameCount,
   frames,
   totalExternalEntropyBytesLength,
-  totalLavaBytesLength,
 }: EntropyCaptureActionResult): EntropyModalSummary {
   return {
     aggregate: {
@@ -137,7 +156,6 @@ function buildEntropySummary({
       finalPoolByteLength,
       frameCount,
       totalExternalEntropyBytesLength,
-      totalLavaBytesLength,
     },
     frames: frames.map((frame) => buildFrameSummary(frame)),
   };
@@ -148,10 +166,10 @@ function buildFrameSummary(
 ): EntropyModalSummary["frames"][number] {
   return {
     capture: {
-      dataUriLength: frame.dataUriLength,
       frameIndex: frame.frameIndex,
       mimeType: "image/png",
-      screenshotDataUri: frame.screenshotDataUri,
+      screenshotByteLength: frame.screenshotByteLength,
+      screenshotUrl: frame.screenshotUrl,
     },
     digest: {
       byteLength: frame.workerResult.sha256Bytes.byteLength,
@@ -165,7 +183,6 @@ function buildFrameSummary(
     },
     pool: {
       byteLength: frame.workerResult.entropyPoolBytes.byteLength,
-      lavaBytesLength: frame.lavaBytesLength,
       previewHex: createPreviewHex(frame.workerResult.entropyPoolBytes),
     },
     resize: {
@@ -201,4 +218,10 @@ function createPreviewHex(buffer: ArrayBuffer, previewByteCount = 16) {
 
 function clampFrameCount(frameCount: number) {
   return Math.min(MAX_FRAME_COUNT, Math.max(MIN_FRAME_COUNT, Math.floor(frameCount)));
+}
+
+function revokeSummaryScreenshotUrls(summary: EntropyModalSummary) {
+  summary.frames.forEach((frame) => {
+    URL.revokeObjectURL(frame.capture.screenshotUrl);
+  });
 }

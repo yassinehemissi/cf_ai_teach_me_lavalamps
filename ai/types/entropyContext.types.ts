@@ -17,7 +17,6 @@ export type ChatEntropyContext = {
     finalPoolByteLength: number;
     frameCount: number;
     totalExternalEntropyBytesLength: number;
-    totalLavaBytesLength: number;
   };
   frames: ChatEntropyFrameContext[];
 };

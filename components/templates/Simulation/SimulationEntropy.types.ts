@@ -8,11 +8,10 @@ export type EntropyCapturePhase =
   | "error";
 
 export type EntropyFrameActionResult = {
-  dataUriLength: number;
   externalEntropyBytesLength: number;
   frameIndex: number;
-  lavaBytesLength: number;
-  screenshotDataUri: string;
+  screenshotByteLength: number;
+  screenshotUrl: string;
   workerResult: EntropyWorkerSuccessResponse;
 };
 
@@ -23,7 +22,6 @@ export type EntropyCaptureActionResult = {
   frameCount: number;
   frames: EntropyFrameActionResult[];
   totalExternalEntropyBytesLength: number;
-  totalLavaBytesLength: number;
 };
 
 export type EntropyCaptureAction = (
@@ -37,10 +35,10 @@ export type EntropyBytePreview = {
 
 export type EntropyFrameSummary = {
   capture: {
-    dataUriLength: number;
     frameIndex: number;
     mimeType: "image/png";
-    screenshotDataUri: string;
+    screenshotByteLength: number;
+    screenshotUrl: string;
   };
   digest: {
     byteLength: number;
@@ -49,9 +47,7 @@ export type EntropyFrameSummary = {
     whiteningStrategy: "sha-256";
   };
   externalEntropy: EntropyBytePreview;
-  pool: EntropyBytePreview & {
-    lavaBytesLength: number;
-  };
+  pool: EntropyBytePreview;
   resize: {
     height: number;
     sourceHeight: number;
@@ -72,7 +68,6 @@ export type EntropyModalSummary = {
     finalPoolByteLength: number;
     frameCount: number;
     totalExternalEntropyBytesLength: number;
-    totalLavaBytesLength: number;
   };
   frames: EntropyFrameSummary[];
 };

@@ -39,26 +39,6 @@ export async function sendChatRequest(
   return responsePayload as ChatResponsePayload;
 }
 
-export async function syncChatUsage(usageCount: number) {
-  const response = await fetch("/api/ai/quota", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({ usageCount }),
-  });
-
-  const responsePayload = (await response.json()) as { error?: string };
-
-  if (!response.ok) {
-    throw new Error(
-      typeof responsePayload.error === "string"
-        ? responsePayload.error
-        : "AI quota sync failed.",
-    );
-  }
-}
-
 export async function fetchChatQuota() {
   const response = await fetch("/api/ai/quota", {
     method: "GET",

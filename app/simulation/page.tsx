@@ -1,5 +1,5 @@
-import { Simulation } from "@/components/templates/Simulation/Simulation";
+import SimulationPageClient from "./SimulationPageClient";
 
 export default function SimulationPage() {
-  return <Simulation />;
+  return <SimulationPageClient />;
 }

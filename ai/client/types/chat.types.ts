@@ -1,7 +1,7 @@
 import type { SimulationCommand } from "@/ai/types/command.types";
 import type { ChatEntropyContext } from "@/ai/types/entropyContext.types";
 
-export type ChatRole = "assistant" | "system" | "user";
+export type ChatRole = "assistant" | "user";
 
 export type ChatMessage = {
   content: string;

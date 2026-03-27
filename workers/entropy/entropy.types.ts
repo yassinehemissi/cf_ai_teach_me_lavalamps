@@ -5,8 +5,8 @@ export type EntropyResizeConfig = {
 };
 
 export type EntropyTimingStats = {
-  decodeDataUriMs: number;
-  createBitmapMs: number;
+  createPreviewBlobMs: number;
+  captureBitmapMs: number;
   resizeImageMs: number;
   extractRgbaMs: number;
   hashPoolMs: number;
@@ -16,9 +16,8 @@ export type EntropyTimingStats = {
 export type EntropyWorkerRequest = {
   type: "extract-entropy";
   requestId: string;
-  dataUri: string;
+  sourceBitmap: ImageBitmap;
   resize?: EntropyResizeConfig;
-  lavaBytes?: ArrayBuffer;
   externalEntropyBytes?: ArrayBuffer;
 };
 
@@ -49,4 +48,3 @@ export type EntropyWorkerErrorResponse = {
 export type EntropyWorkerResponse =
   | EntropyWorkerSuccessResponse
   | EntropyWorkerErrorResponse;
-
