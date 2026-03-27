@@ -56,6 +56,18 @@ export default function Home() {
             </p>
           </article>
         </div>
+        <p className="text-sm text-stone-400">
+          Made with love by{" "}
+          <a
+            href="https://www.yassinehemissi.me/"
+            target="_blank"
+            rel="noreferrer"
+            className="text-amber-300 transition hover:text-amber-200"
+          >
+            Med
+          </a>
+          .
+        </p>
       </section>
     </main>
   );
