@@ -1405,3 +1405,53 @@ the 4 parameers changing have no effect
 I traced the control path and found the updates were reaching the simulators, but the exposed parameters were mapped too narrowly compared to the fixed internal forces around them, which made them feel inert.
 I widened the runtime mappings so `temperature` now also scales bottom heating, top cooling, and stochastic amplitude, `damping` also scales boundary damping, `diffusion` also changes field softness, and `buoyancy` now shifts the gravity balance slightly as well.
 Validation passed with `npx tsc --noEmit` and targeted `npx eslint` on the updated physics simulator file.
+
+## 2026-03-27
+
+### User Prompt
+update landing page
+
+### 3-Line Answer Summary
+I rewrote the landing page so it matches the current product state rather than the older placeholder copy.
+The updated page now highlights the protected simulation route, auth flow, room-scale lamp wall, entropy extraction pipeline, and bounded AI control layer, with clear simulation and auth entry points.
+The change was isolated to the root landing page file.
+
+## 2026-03-27
+
+### User Prompt
+revert just change the text on old design
+
+### 3-Line Answer Summary
+I restored the earlier simpler landing-page layout instead of keeping the newer expanded structure.
+Only the text was updated so the old design now reflects the current app state: room-scale lamps, live entropy extraction, protected simulation access, and bounded AI control.
+The change stayed isolated to the root landing page file.
+
+## 2026-03-27
+
+### User Prompt
+make readme.md add introduction, technologies, what is this (cloudflare lamps style out of curiosity), note that the code is not yet fully cleaned/reviewed; mention features and Author: Med; use demo.gif
+
+### 3-Line Answer Summary
+I replaced the default scaffold README with a project-specific one and used `demo.gif` as the preview at the top.
+The new README now includes an introduction, technologies, a "What Is This?" section framed around the Cloudflare-lamps curiosity, a features list, a note that the code is not yet fully cleaned or reviewed, and the author credit.
+This was a documentation-only change.
+
+## 2026-03-27
+
+### User Prompt
+add algorithm, 1- we simulating motion through some physics inspired formulas; 2- we screenshot the frames of lamps stochastic then flatten and hash to produce entropy after mixing with time jitter (inspired by cloudflare) 3- ai agent allows explaning and modifying and running the entropy;
+
+### 3-Line Answer Summary
+I added an `Algorithm` section to the README.
+It now explains the three-step flow: physics-inspired motion simulation, frame capture plus flattening and hashing with timing jitter for demo entropy, and the AI agent layer for explanation, control, and entropy execution.
+This was a documentation-only update.
+
+## 2026-03-27
+
+### User Prompt
+modify landing text accordingly
+
+### 3-Line Answer Summary
+I updated the landing-page copy to match the README’s algorithm framing.
+The homepage now describes the project in terms of physics-inspired motion, frame-based entropy with timing jitter, and the bounded AI agent layer, while keeping the existing simple layout unchanged.
+The change was limited to landing-page text.
