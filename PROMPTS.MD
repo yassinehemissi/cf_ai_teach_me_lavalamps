@@ -1721,3 +1721,23 @@ No other layout or behavior changes were made.
 I added the Umami tracking script to the root app layout using Next's `next/script` component.
 It now loads once for the whole application with the provided website id and `afterInteractive` strategy.
 No page structure or route behavior was changed beyond the analytics script injection.
+
+## 2026-03-27
+
+### User Prompt
+remove the client cache sync it always from server
+
+### 3-Line Answer Summary
+I removed the chat quota sessionStorage cache and its local usage tracking from the client state.
+The chat UI now hydrates quota from `/api/ai/quota` on load and refreshes it from the server again after each successful chat request.
+The change passed `npx tsc --noEmit` and targeted `eslint` on the chat and quota files.
+
+## 2026-03-27
+
+### User Prompt
+when you check jwt on server check if user exists too after verify
+
+### 3-Line Answer Summary
+I tightened the server session resolver so a valid JWT is accepted only if the referenced user still exists in D1 and the stored email matches the token claims.
+That check now happens in `getSessionFromRequest(...)` through a new `findUserById(...)` auth query.
+I also restored the missing local declaration files for `react-katex` and `jsonwebtoken`, then verified the repo with `npx tsc --noEmit` and targeted `eslint`.

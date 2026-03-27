@@ -20,6 +20,16 @@ export async function findUserByEmail(email: string): Promise<AuthUser | null> {
   return users[0] ?? null;
 }
 
+export async function findUserById(userId: string): Promise<AuthUser | null> {
+  const { usersTable } = getAuthEnvironment();
+  const users = await d1Query<AuthUser>(
+    `SELECT id, email, password_hash, created_at FROM ${usersTable} WHERE id = ? LIMIT 1`,
+    [userId],
+  );
+
+  return users[0] ?? null;
+}
+
 export async function createUser(
   email: string,
   passwordHash: string,

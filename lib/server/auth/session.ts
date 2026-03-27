@@ -7,6 +7,7 @@ import {
   SESSION_MAX_AGE_SECONDS,
 } from "./auth.config";
 import { createSessionToken, verifySessionToken, type SessionClaims } from "./jwt";
+import { findUserById } from "./users";
 
 export async function setSessionCookie(
   response: NextResponse,
@@ -48,5 +49,17 @@ export async function getSessionFromRequest(
     return null;
   }
 
-  return verifySessionToken(token);
+  const sessionClaims = await verifySessionToken(token);
+
+  if (!sessionClaims) {
+    return null;
+  }
+
+  const user = await findUserById(sessionClaims.sub);
+
+  if (!user || user.email !== sessionClaims.email) {
+    return null;
+  }
+
+  return sessionClaims;
 }

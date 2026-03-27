@@ -12,6 +12,7 @@
   "dependencies": {
     "@cloudflare/ai-chat": "^0.2.5",
     "@react-three/fiber": "^9.5.0",
+    "@types/bcrypt": "^6.0.0",
     "@types/three": "^0.183.1",
     "agents": "^0.8.6",
     "ai": "^6.0.140",
@@ -28,9 +29,11 @@
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/react-katex": "^3.0.4",
     "eslint": "^9",
     "eslint-config-next": "16.2.1",
     "tailwindcss": "^4",
