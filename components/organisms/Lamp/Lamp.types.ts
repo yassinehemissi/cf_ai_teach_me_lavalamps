@@ -80,6 +80,11 @@ export type LavaSliceMask = {
 
 export type PreparedLampModel = {
   scene: Group;
+  modelSize: {
+    x: number;
+    y: number;
+    z: number;
+  };
   lavaBounds: SimulationBounds;
   modelOffset: ModelOffset;
   coordinateFrame: CoordinateFrame;

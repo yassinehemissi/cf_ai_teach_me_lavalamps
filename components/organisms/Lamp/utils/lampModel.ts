@@ -43,6 +43,7 @@ export function prepareLampModel(scene: Group): PreparedLampModel {
 
   const lavaBoundsBox = new Box3().setFromObject(lavaMesh);
   const sceneCenter = sceneBounds.getCenter(new Vector3());
+  const sceneSize = sceneBounds.getSize(new Vector3());
   const lavaCenter = lavaBoundsBox.getCenter(new Vector3());
   const coordinateFrame = createCoordinateFrame(
     LAMP_LOCAL_TO_SIMULATION_PROJECTION,
@@ -116,6 +117,11 @@ export function prepareLampModel(scene: Group): PreparedLampModel {
 
   return {
     scene,
+    modelSize: {
+      x: sceneSize.x,
+      y: sceneSize.y,
+      z: sceneSize.z,
+    },
     lavaBounds: sliceMask.bounds,
     modelOffset: {
       x: -sceneCenter.x,

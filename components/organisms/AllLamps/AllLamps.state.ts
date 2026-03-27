@@ -2,7 +2,6 @@
 
 import { useLoader } from "@react-three/fiber";
 import { useMemo } from "react";
-import { Box3, Vector3 } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import {
@@ -33,11 +32,12 @@ export function useAllLampsState({
   wallMount,
 }: AllLampsStateArgs): AllLampsState {
   const gltf = useLoader(GLTFLoader, LAVA_LAMP_MODEL_URL);
+  const preparedModel = useMemo(
+    () => prepareLampModel(gltf.scene.clone(true)),
+    [gltf.scene],
+  );
 
   return useMemo(() => {
-    const preparedModel = prepareLampModel(gltf.scene.clone(true));
-    const lampBoundsBox = new Box3().setFromObject(preparedModel.scene);
-    const lampSize = lampBoundsBox.getSize(new Vector3());
     const horizontalAxis = wallMount.axis === "z" ? "x" : "z";
     const horizontalMin =
       wallMount.roomBounds.min[horizontalAxis] + HORIZONTAL_MARGIN;
@@ -47,10 +47,10 @@ export function useAllLampsState({
     const wallVerticalCenter =
       (wallMount.roomBounds.min.y + wallMount.roomBounds.max.y) * 0.5;
     const lampHorizontalSize = Math.max(
-      horizontalAxis === "x" ? lampSize.x : lampSize.z,
+      horizontalAxis === "x" ? preparedModel.modelSize.x : preparedModel.modelSize.z,
       0.1,
     );
-    const lampVerticalSize = Math.max(lampSize.y, 0.1);
+    const lampVerticalSize = Math.max(preparedModel.modelSize.y, 0.1);
     const commonLampGap =
       Math.max(lampHorizontalSize, lampVerticalSize) * LAMP_GAP_MULTIPLIER;
     const horizontalSpan = commonLampGap * (LAMP_COLUMN_COUNT - 1);
@@ -147,5 +147,5 @@ export function useAllLampsState({
       lamps,
       boards,
     };
-  }, [gltf.scene, wallMount]);
+  }, [preparedModel, wallMount]);
 }
