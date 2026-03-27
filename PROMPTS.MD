@@ -1671,3 +1671,13 @@ split the room.state.ts into utils under /utils of same route of room component 
 I split `Room.state.ts` into local `Room/utils` modules by usage: browser readiness, constants, layout/bounds, procedural textures/materials, and scene assembly.
 `Room.state.ts` is now a thin orchestrator that just composes those utilities into the `RoomState`.
 The refactor passed `npx tsc --noEmit` and targeted `eslint` on the room slice.
+
+## 2026-03-27
+
+### User Prompt
+run a building loop and keep fixing build lint errors till project builds (no config or lint changing is allowed adapt code)
+
+### 3-Line Answer Summary
+I fixed the production build blocker by wrapping the auth client form in `Suspense` on both auth pages so `useSearchParams` satisfies Next's prerender rules.
+I then reran the full production build and the repo lint command until both passed without changing any build or lint configuration.
+The only remaining output is a non-blocking Next workspace-root warning; the app itself now builds and lints successfully.
