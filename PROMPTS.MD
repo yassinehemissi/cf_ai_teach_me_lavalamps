@@ -1525,3 +1525,39 @@ no system messages from browser and no quota from client; client can just send a
 I tightened the API boundary so browser writes are limited to auth and chat, with route-local Zod schemas enforcing exact request shapes.
 Client-supplied `system` messages are now rejected, `/api/ai/quota` is read-only `GET`, and quota increments happen only inside `/api/ai/chat` after successful processing.
 I also hardened entropyContext parsing with nested strict Zod schemas because it is trusted raw input into the agent flow.
+
+## 2026-03-27
+
+### User Prompt
+add me a console.log on the api get route to see on each stage what it's returning from our guads
+
+### 3-Line Answer Summary
+I added debug logging to the quota `GET` route.
+It now logs request receipt, session resolution, unauthorized exits, and the final quota payload returned by the guard path.
+This was a diagnostics-only server change.
+
+## 2026-03-27
+
+### User Prompt
+ReferenceError: document is not defined
+    at createWallTexture (components\organisms\Room\Room.state.ts:202:18)
+    at createRoomScene (components\organisms\Room\Room.state.ts:52:23)
+    at createRoomState (components\organisms\Room\Room.state.ts:44:16)
+    at <unknown> (components\organisms\Room\Room.state.ts:26:24)
+    at useRoomState (components\organisms\Room\Room.state.ts:26:17)
+    at useSimulationState (components\templates\Simulation\Simulation.state.ts:13:28)
+    at Simulation (components\templates\Simulation\Simulation.tsx:20:56)
+  200 |
+  201 | function createWallTexture(): CanvasTexture {
++ 202 |   const canvas = document.createElement("canvas");
+      |                  ^
+  203 |   const size = 256;
+  204 |
+  205 |   canvas.width = size; {
+  digest: '2255243067'
+}; we have this small client error fix it by settings a timeout so te context waits for document to be initialized, suggest better fix if there is
+
+### 3-Line Answer Summary
+I did not use a timeout because the real problem was render-time access to `document`, not delayed browser initialization.
+The room scene is now created only after mount in a client effect, while wall-mount data remains available immediately for lamp layout.
+I also added cleanup disposal for the generated room scene so the deferred creation does not leak Three.js resources.

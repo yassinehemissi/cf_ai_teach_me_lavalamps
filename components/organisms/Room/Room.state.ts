@@ -23,11 +23,26 @@ const DOOR_HEIGHT = 14.4;
 const DOOR_CENTER_Z = 0;
 
 export function useRoomState(): RoomState {
-  return useMemo(() => createRoomState(), []);
+  const roomBounds = useMemo(() => createRoomBounds(), []);
+  const wallMount = useMemo(() => createWallMount(roomBounds), [roomBounds]);
+  const roomScene = useMemo(
+    () =>
+      typeof document === "undefined" ? new Group() : createRoomScene(roomBounds),
+    [roomBounds],
+  );
+
+  return useMemo(
+    () => ({
+      roomScale: ROOM_SCALE,
+      roomScene,
+      wallMount,
+    }),
+    [roomScene, wallMount],
+  );
 }
 
-function createRoomState(): RoomState {
-  const roomBounds: RoomBounds = {
+function createRoomBounds(): RoomBounds {
+  return {
     min: {
       x: -ROOM_WIDTH * 0.5,
       y: 0,
@@ -38,12 +53,6 @@ function createRoomState(): RoomState {
       y: ROOM_HEIGHT,
       z: ROOM_DEPTH * 0.5,
     },
-  };
-
-  return {
-    roomScene: createRoomScene(roomBounds),
-    roomScale: ROOM_SCALE,
-    wallMount: createWallMount(roomBounds),
   };
 }
 
@@ -358,6 +367,7 @@ function createFloorTexture(): CanvasTexture {
 
   return texture;
 }
+
 
 function createWallMount(roomBounds: RoomBounds): RoomWallMount {
   return {
