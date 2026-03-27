@@ -1,22 +1,16 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
-import { Canvas, useThree } from "@react-three/fiber";
+import { Suspense } from "react";
+import { Canvas } from "@react-three/fiber";
 
 import { AllLamps } from "@/components/organisms/AllLamps/AllLamps";
 import { EntropyModal } from "@/components/organisms/EntropyModal/EntropyModal";
 import { Room } from "@/components/organisms/Room/Room";
 
+import { LockedCamera } from "./components/LockedCamera/LockedCamera";
+import { SimulationEntropyBridge } from "./components/SimulationEntropyBridge/SimulationEntropyBridge";
 import { useSimulationEntropyState } from "./SimulationEntropy.state";
-import type { EntropyCaptureAction } from "./SimulationEntropy.types";
 import { useSimulationState } from "./Simulation.state";
-import {
-  buildDemoExternalEntropyBytes,
-  concatArrayBuffers,
-  hashArrayBuffer,
-  waitForNextFrame,
-} from "./utils/entropy";
-import { extractSceneEntropy } from "./utils/screenshot";
 
 export function Simulation() {
   const { room, allLamps, camera } = useSimulationState();
@@ -94,89 +88,4 @@ export function Simulation() {
       </div>
     </main>
   );
-}
-
-function LockedCamera({
-  target,
-  position,
-}: {
-  target: [number, number, number];
-  position: [number, number, number];
-}) {
-  const { camera } = useThree();
-
-  useEffect(() => {
-    camera.position.set(...position);
-    camera.lookAt(...target);
-    camera.updateProjectionMatrix();
-  }, [camera, position, target]);
-
-  return null;
-}
-
-function SimulationEntropyBridge({
-  onCaptureActionReady,
-}: {
-  onCaptureActionReady: (action: EntropyCaptureAction | null) => void;
-}) {
-  const { camera, gl, scene } = useThree();
-
-  useEffect(() => {
-    const captureSimulationEntropy: EntropyCaptureAction = async (frameCount) => {
-      const frameResults = [];
-
-      for (let frameIndex = 0; frameIndex < frameCount; frameIndex += 1) {
-        if (frameIndex > 0) {
-          await waitForNextFrame();
-        }
-
-        const externalEntropyBytes = await buildDemoExternalEntropyBytes(frameIndex);
-        const externalEntropyBytesLength = externalEntropyBytes.byteLength;
-        const { dataUri, result } = await extractSceneEntropy(gl, scene, camera, {
-          externalEntropyBytes,
-          resize: {
-            maxHeight: 128,
-            maxWidth: 128,
-            smoothingQuality: "high",
-          },
-        });
-
-        frameResults.push({
-          dataUriLength: dataUri.length,
-          externalEntropyBytesLength,
-          frameIndex,
-          lavaBytesLength: 0,
-          screenshotDataUri: dataUri,
-          workerResult: result,
-        });
-      }
-
-      const finalPoolBytes = concatArrayBuffers(
-        frameResults.map((frame) => frame.workerResult.entropyPoolBytes),
-      );
-      const finalDigest = await hashArrayBuffer(finalPoolBytes.buffer);
-      const totalExternalEntropyBytesLength = frameResults.reduce(
-        (length, frame) => length + frame.externalEntropyBytesLength,
-        0,
-      );
-
-      return {
-        finalDigestByteLength: finalDigest.byteLength,
-        finalDigestHex: finalDigest.hex,
-        finalPoolByteLength: finalPoolBytes.byteLength,
-        frameCount,
-        frames: frameResults,
-        totalExternalEntropyBytesLength,
-        totalLavaBytesLength: 0,
-      };
-    };
-
-    onCaptureActionReady(captureSimulationEntropy);
-
-    return () => {
-      onCaptureActionReady(null);
-    };
-  }, [camera, gl, onCaptureActionReady, scene]);
-
-  return null;
 }

@@ -2,6 +2,9 @@
 
 import Image from "next/image";
 
+import { MetricCard } from "./components/MetricCard/MetricCard";
+import { StageCard } from "./components/StageCard/StageCard";
+import { TimingPill } from "./components/TimingPill/TimingPill";
 import type { EntropyModalProps } from "./EntropyModal.types";
 import { useEntropyModalState } from "./EntropyModal.state";
 
@@ -284,66 +287,6 @@ export function EntropyModal({
           </div>
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function MetricCard({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-stone-800 bg-stone-950/80 p-4">
-      <p className="text-xs uppercase tracking-[0.2em] text-stone-500">{label}</p>
-      <p className="mt-3 break-all text-lg text-stone-100">{value}</p>
-    </div>
-  );
-}
-
-function StageCard({
-  lines,
-  rank,
-  title,
-}: {
-  lines: string[];
-  rank: number;
-  title: string;
-}) {
-  return (
-    <div className="rounded-2xl border border-stone-800 bg-stone-900/70 p-4">
-      <div className="flex items-center gap-3">
-        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full border border-amber-500/40 bg-amber-500/10 text-xs font-semibold text-amber-200">
-          {rank}
-        </span>
-        <p className="text-xs uppercase tracking-[0.25em] text-stone-500">
-          {title}
-        </p>
-      </div>
-      <div className="mt-3 space-y-2">
-        {lines.map((line) => (
-          <p key={line} className="break-all text-sm text-stone-200">
-            {line}
-          </p>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function TimingPill({
-  label,
-  value,
-}: {
-  label: string;
-  value: number;
-}) {
-  return (
-    <div className="rounded-2xl border border-stone-800 bg-stone-950/80 px-4 py-3">
-      <p className="text-xs uppercase tracking-[0.2em] text-stone-500">{label}</p>
-      <p className="mt-2 text-sm text-amber-200">{value.toFixed(3)} ms</p>
     </div>
   );
 }

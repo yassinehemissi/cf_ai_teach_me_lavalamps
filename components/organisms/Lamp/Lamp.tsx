@@ -1,20 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Group, MeshPhysicalMaterial } from "three";
+import { Group } from "three";
 
+import { LampLiquid } from "./components/LampLiquid/LampLiquid";
 import { useLampState } from "./Lamp.state";
-import type { LampProps, LavaSurfaceProps } from "./Lamp.types";
-import {
-  DEFAULT_LAVA_COLOR_GRADIENT,
-  SURFACE_UPDATE_INTERVAL_SECONDS,
-  applySurfaceTransform,
-  createMarchingCubes,
-  disposeMarchingCubes,
-  updateLavaSurfaceShader,
-  updateMarchingCubesSurface,
-} from "./utils";
+import type { LampProps } from "./Lamp.types";
+import { DEFAULT_LAVA_COLOR_GRADIENT } from "./utils";
 
 export function Lamp({
   preparedModel,
@@ -55,53 +48,4 @@ export function Lamp({
       </group>
     </group>
   );
-}
-
-function LampLiquid({
-  initialSnapshot,
-  snapshotRef,
-  colorGradient,
-  coordinateFrame,
-}: LavaSurfaceProps) {
-  const marchingCubes = useMemo(
-    () => createMarchingCubes(initialSnapshot.field.resolution.x, colorGradient),
-    [colorGradient, initialSnapshot.field.resolution.x],
-  );
-  const surfaceUpdateAccumulatorRef = useRef(0);
-
-  useEffect(() => {
-    applySurfaceTransform(
-      marchingCubes,
-      initialSnapshot.field,
-      coordinateFrame,
-    );
-
-    return () => {
-      disposeMarchingCubes(marchingCubes);
-    };
-  }, [coordinateFrame, initialSnapshot.field, marchingCubes]);
-
-  useFrame((frameState, deltaSeconds) => {
-    const snapshot = snapshotRef.current;
-
-    surfaceUpdateAccumulatorRef.current += deltaSeconds;
-
-    if (surfaceUpdateAccumulatorRef.current >= SURFACE_UPDATE_INTERVAL_SECONDS) {
-      updateMarchingCubesSurface(
-        marchingCubes,
-        snapshot.field,
-        snapshot.dynamics,
-      );
-      surfaceUpdateAccumulatorRef.current = 0;
-    }
-
-    updateLavaSurfaceShader(
-      marchingCubes.material as MeshPhysicalMaterial,
-      snapshot.dynamics,
-      frameState.clock.elapsedTime,
-      colorGradient,
-    );
-  });
-
-  return <primitive object={marchingCubes} position={[0, 0, 0]} scale={[1, 1, 1]} />;
 }

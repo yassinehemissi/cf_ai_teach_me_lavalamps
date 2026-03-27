@@ -1085,3 +1085,33 @@ enhance the ui by keeping just frame images + ranked step on modal open + the fi
 I simplified the entropy modal so it now opens with just the ranked step overview, the final aggregate result, and a vertical full-width frame gallery.
 Each frame image is now rendered in a proper full-width `16:9` container, and clicking any frame opens a dedicated detail overlay with that frame’s worker-step breakdown and timings.
 The selection logic was split into `components/organisms/EntropyModal/EntropyModal.state.ts`, and verification passed with `npx tsc --noEmit` and targeted `npx eslint`.
+
+## 2026-03-27
+
+### User Prompt
+some component files contain more than 1 component this is against the rules (not mentioned earlier for stategic purposes); move over all the files of the project and whenver a component suite serves more than 1 component we nest for cleanup; give plan
+
+### 3-Line Answer Summary
+The cleanup should be a repo-wide component-structure refactor: any TSX file exporting or defining multiple components should be split into nested component suites with one component per file.
+The safest order is to start with the highest-density feature areas like `Simulation` and `EntropyModal`, then move through the rest of `components/` while keeping state and types in sibling files.
+I also need to update imports incrementally and validate each feature slice with TypeScript and ESLint after the split so the refactor stays mechanical instead of behavior-changing.
+
+## 2026-03-27
+
+### User Prompt
+go on
+
+### 3-Line Answer Summary
+I split the multi-component suites into nested one-component-per-file structures for `Simulation`, `EntropyModal`, and `Lamp`, and updated imports so behavior stays unchanged.
+I also updated `CODING_RULES.MD` to explicitly require one component per TSX file and local nested component suites when a feature needs multiple UI pieces.
+Verification passed with `npx tsc --noEmit`, `npx eslint .`, and a repo-wide TSX component audit showing one component per file.
+
+## 2026-03-27
+
+### User Prompt
+move through the empty folders and delete them
+
+### 3-Line Answer Summary
+I scanned the workspace for empty directories, including a focused pass across the main source roots, before deleting anything.
+There are currently no empty folders in the repository, so no removals were needed.
+This was a no-op cleanup result rather than a code change.

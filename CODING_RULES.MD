@@ -26,6 +26,7 @@
 
 - Functional components must be organized with atomic design under suitable directories.
 - Component files should contain TSX only.
+- Each TSX component file may define only one component. If a feature needs multiple components, nest them into a local component suite with one component per file.
 - Move component-local state logic into sibling `.state.ts` files when state is nontrivial or reused.
 - Move component-local types into sibling `.types.ts` files when types are nontrivial or reused.
 - Keep visual components thin and move orchestration into contexts, controllers, and domain modules.
