@@ -1,3 +1,3 @@
-export const MAX_DAILY_CHAT_MESSAGES = 20;
+export const MAX_DAILY_CHAT_MESSAGES = 5;
 export const MAX_CHAT_USER_MESSAGE_LENGTH = 200;
 export const CHAT_USAGE_SYNC_DEBOUNCE_MS = 60 * 1000;

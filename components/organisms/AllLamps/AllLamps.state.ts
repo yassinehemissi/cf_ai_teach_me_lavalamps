@@ -7,6 +7,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import {
   createLampRenderer,
+  LAVA_LAMP_MODEL_URL,
   prepareLampModel,
 } from "@/components/organisms/Lamp/utils";
 import { LavaLampSimulationRegistry } from "@/simulation/core/LavaLampSimulationRegistry";
@@ -31,7 +32,7 @@ const BOARD_VERTICAL_CLEARANCE = 0.48;
 export function useAllLampsState({
   wallMount,
 }: AllLampsStateArgs): AllLampsState {
-  const gltf = useLoader(GLTFLoader, "/lava_lamp.glb");
+  const gltf = useLoader(GLTFLoader, LAVA_LAMP_MODEL_URL);
 
   return useMemo(() => {
     const preparedModel = prepareLampModel(gltf.scene.clone(true));
