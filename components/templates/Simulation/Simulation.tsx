@@ -6,15 +6,36 @@ import { Canvas } from "@react-three/fiber";
 import { AllLamps } from "@/components/organisms/AllLamps/AllLamps";
 import { EntropyModal } from "@/components/organisms/EntropyModal/EntropyModal";
 import { Room } from "@/components/organisms/Room/Room";
+import { ChatWindow } from "@/ai/client/components/ChatWindow/ChatWindow";
 
 import { LockedCamera } from "./components/LockedCamera/LockedCamera";
+import { SimulationParameterPanel } from "./components/SimulationParameterPanel/SimulationParameterPanel";
 import { SimulationEntropyBridge } from "./components/SimulationEntropyBridge/SimulationEntropyBridge";
+import { useSimulationParameterState } from "./SimulationParameters.state";
 import { useSimulationEntropyState } from "./SimulationEntropy.state";
 import { useSimulationState } from "./Simulation.state";
+import { buildChatEntropyContext } from "./utils/entropyContext";
 
 export function Simulation() {
   const { room, allLamps, camera } = useSimulationState();
   const entropy = useSimulationEntropyState();
+  const simulationParameters = useSimulationParameterState(
+    allLamps.lamps.map((lamp) => lamp.renderer),
+  );
+
+  const runEntropyFromChat = async (frameCount: number) => {
+    const summary = await entropy.runEntropyCaptureForFrameCount(frameCount);
+
+    if (!summary) {
+      return null;
+    }
+
+    return [
+      `Entropy run completed for ${summary.aggregate.frameCount} frame(s).`,
+      `Final pool bytes: ${summary.aggregate.finalPoolByteLength}.`,
+      `Final SHA-256: ${summary.aggregate.finalDigestHex}.`,
+    ].join(" ");
+  };
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_#2f221f,_#120d0c_55%,_#080607)] text-stone-100">
@@ -26,6 +47,11 @@ export function Simulation() {
           <h1 className="font-mono text-2xl text-stone-100">
             Lava Lamp Wall
           </h1>
+          <div className="mt-4">
+            <SimulationParameterPanel
+              parameters={simulationParameters.parameterEntries}
+            />
+          </div>
         </div>
         <div className="flex items-center gap-4">
           <p className="max-w-lg text-right text-sm text-stone-300">
@@ -63,6 +89,11 @@ export function Simulation() {
         onClose={entropy.closeModal}
         phase={entropy.phase}
         summary={entropy.summary}
+      />
+      <ChatWindow
+        getEntropyContext={() => buildChatEntropyContext(entropy.summary)}
+        onEntropyCommand={runEntropyFromChat}
+        onSimulationCommand={simulationParameters.applySimulationCommand}
       />
       <div className="h-screen">
         <Canvas

@@ -51,7 +51,7 @@ export function useSimulationEntropyState() {
     }));
   }, []);
 
-  const runEntropyCapture = useCallback(async () => {
+  const executeEntropyCapture = useCallback(async (requestedFrameCount: number) => {
     const captureAction = captureActionRef.current;
 
     if (!captureAction) {
@@ -61,7 +61,7 @@ export function useSimulationEntropyState() {
         isModalOpen: true,
         phase: "error",
       }));
-      return;
+      return null;
     }
 
     setState((currentState) => ({
@@ -73,7 +73,7 @@ export function useSimulationEntropyState() {
     }));
 
     try {
-      const activeFrameCount = clampFrameCount(state.frameCount);
+      const activeFrameCount = clampFrameCount(requestedFrameCount);
       const actionPromise = captureAction(activeFrameCount);
 
       setState((currentState) => ({
@@ -82,12 +82,15 @@ export function useSimulationEntropyState() {
       }));
 
       const captureResult = await actionPromise;
+      const summary = buildEntropySummary(captureResult);
 
       setState((currentState) => ({
         ...currentState,
         phase: "success",
-        summary: buildEntropySummary(captureResult),
+        summary,
       }));
+
+      return summary;
     } catch (error) {
       setState((currentState) => ({
         ...currentState,
@@ -95,14 +98,25 @@ export function useSimulationEntropyState() {
           error instanceof Error ? error.message : "Entropy capture failed.",
         phase: "error",
       }));
+
+      return null;
     }
-  }, [state.frameCount]);
+  }, []);
+
+  const runEntropyCapture = useCallback(() => {
+    return executeEntropyCapture(state.frameCount);
+  }, [executeEntropyCapture, state.frameCount]);
+
+  const runEntropyCaptureForFrameCount = useCallback((frameCount: number) => {
+    return executeEntropyCapture(frameCount);
+  }, [executeEntropyCapture]);
 
   return {
     ...state,
     closeModal,
     registerCaptureAction,
     runEntropyCapture,
+    runEntropyCaptureForFrameCount,
     setFrameCount,
   };
 }

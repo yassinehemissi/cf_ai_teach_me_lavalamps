@@ -43,9 +43,13 @@ export class PhysicsSimulator extends LavaLampSimulation {
   private static readonly DEFAULT_MAX_SUBSTEPS = 8;
 
   private readonly boundaryConfig: PhysicsBoundaryConfig;
+  private readonly baseBoundaryConfig: PhysicsBoundaryConfig;
   private readonly fieldConfig: PhysicsFieldConfig;
+  private readonly baseFieldConfig: PhysicsFieldConfig;
   private readonly forceConfig: PhysicsForceConfig;
+  private readonly baseForceConfig: PhysicsForceConfig;
   private readonly temperatureConfig: PhysicsTemperatureConfig;
+  private readonly baseTemperatureConfig: PhysicsTemperatureConfig;
   private readonly guardrails: SimulationGuardrails;
   private readonly fixedDeltaTimeMs: number;
   private readonly maxSubsteps: number;
@@ -63,9 +67,20 @@ export class PhysicsSimulator extends LavaLampSimulation {
     assertPhysicsSimulatorConfig(config);
 
     this.boundaryConfig = normalizeBoundaryConfig(config.boundary, config);
+    this.baseBoundaryConfig = {
+      ...this.boundaryConfig,
+      bounds: cloneBounds(this.boundaryConfig.bounds),
+    };
     this.fieldConfig = normalizeFieldConfig(config.field, config);
+    this.baseFieldConfig = {
+      ...this.fieldConfig,
+      bounds: cloneBounds(this.fieldConfig.bounds),
+      resolution: { ...this.fieldConfig.resolution },
+    };
     this.forceConfig = { ...config.forces };
+    this.baseForceConfig = { ...config.forces };
     this.temperatureConfig = { ...config.temperature };
+    this.baseTemperatureConfig = { ...config.temperature };
     this.guardrails = createGuardrails(config);
     this.fixedDeltaTimeMs =
       config.time?.fixedDeltaTimeMs ??
@@ -130,19 +145,42 @@ export class PhysicsSimulator extends LavaLampSimulation {
   setParameter(update: SimulationParameterUpdate): void {
     const guardrail = this.guardrails[update.key];
     const clampedValue = clamp(update.value, guardrail.min, guardrail.max);
+    const defaultValue = Math.max(guardrail.defaultValue, 0.0001);
+    const relativeScale = clampedValue / defaultValue;
 
     switch (update.key) {
       case "diffusion":
         this.temperatureConfig.diffusionRate = clampedValue;
+        this.fieldConfig.epsilon = clamp(
+          this.baseFieldConfig.epsilon * (0.7 + relativeScale * 0.6),
+          0.02,
+          2,
+        );
         return;
       case "buoyancy":
         this.forceConfig.buoyancyBeta = clampedValue;
+        this.forceConfig.gravity = clamp(
+          this.baseForceConfig.gravity * (1.18 - relativeScale * 0.18),
+          0.1,
+          this.baseForceConfig.gravity * 1.5,
+        );
         return;
       case "damping":
         this.forceConfig.dragCoefficient = clampedValue;
+        this.boundaryConfig.damping = clamp(
+          this.baseBoundaryConfig.damping * relativeScale,
+          0,
+          this.baseBoundaryConfig.damping * 4,
+        );
         return;
       case "temperature":
         this.temperatureConfig.globalHeating = clampedValue;
+        this.temperatureConfig.bottomHeatingBias =
+          this.baseTemperatureConfig.bottomHeatingBias * relativeScale;
+        this.temperatureConfig.topCoolingBias =
+          this.baseTemperatureConfig.topCoolingBias * relativeScale;
+        this.temperatureConfig.stochasticAmplitude =
+          this.baseTemperatureConfig.stochasticAmplitude * relativeScale;
         return;
     }
   }

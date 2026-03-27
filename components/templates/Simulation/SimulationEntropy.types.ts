@@ -85,3 +85,10 @@ export type SimulationEntropyState = {
   phase: EntropyCapturePhase;
   summary: EntropyModalSummary | null;
 };
+
+export type EntropyCaptureExecution = {
+  runEntropyCapture: () => Promise<EntropyModalSummary | null>;
+  runEntropyCaptureForFrameCount: (
+    frameCount: number,
+  ) => Promise<EntropyModalSummary | null>;
+};
