@@ -1701,3 +1701,23 @@ use toBlob over toDataURI as it i stoo expensive, keep the worker centralized to
 I refactored the entropy pipeline so the worker now receives a transferred `ImageBitmap` from the live canvas instead of a PNG data URI, which removes the expensive decode roundtrip.
 The worker is now shared across requests instead of being recreated every time, and `toBlob()` is only used once per frame to generate the modal preview image as a revokable object URL.
 I updated the entropy summary and modal labels to match the new blob/bitmap flow, and verified the changes with `npx tsc --noEmit` and targeted `eslint`.
+
+## 2026-03-27
+
+### User Prompt
+add link to my website on landing and say Made with love by Med [https://www.yassinehemissi.me/] (Med is supposed to be the link text
+
+### 3-Line Answer Summary
+I updated the landing page copy to add the requested credit line near the bottom of the existing layout.
+The `Med` text now links to `https://www.yassinehemissi.me/` and opens in a new tab.
+No other layout or behavior changes were made.
+
+## 2026-03-27
+
+### User Prompt
+<script defer src="https://cloud.umami.is/script.js" data-website-id="c3b610e9-91ea-4d45-b2bc-2188b30fd7e6"></script> add the umami tracking code
+
+### 3-Line Answer Summary
+I added the Umami tracking script to the root app layout using Next's `next/script` component.
+It now loads once for the whole application with the provided website id and `afterInteractive` strategy.
+No page structure or route behavior was changed beyond the analytics script injection.
