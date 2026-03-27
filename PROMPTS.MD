@@ -1485,3 +1485,23 @@ i meant add D1 SQL creation queries of our quota and users tables
 I corrected the README usage section to include the actual SQL schema creation queries for the `users` and `quotas` tables.
 I also added a Wrangler example showing how to execute a schema file against the D1 database.
 This was a README-only documentation correction.
+
+## 2026-03-27
+
+### User Prompt
+set the limit to 5 messages a day and brief again how the quota is being checked again so i confirm for a deployment
+
+### 3-Line Answer Summary
+I reduced the shared daily chat limit from 20 to 5 by updating the single source-of-truth quota constant.
+The deployment check path is: JWT session auth on `/api/ai/chat`, 200-character validation, D1 quota lookup/reset in `lib/server/quota/quota.ts`, and `429` rejection when the daily limit is reached.
+Quota rows reset at the next UTC midnight, and `/api/ai/quota` remains the authenticated read/sync endpoint for quota state.
+
+## 2026-03-27
+
+### User Prompt
+you are reinventing the wheel in jwt code remove it all and use jsonwebtoken i just installed it instead of vanilla making everything;
+
+### 3-Line Answer Summary
+I removed the custom JWT signing and verification code and replaced it with `jsonwebtoken` in the server auth layer.
+The session API stayed the same, so sign-in, sign-up, and session lookup keep working without route changes.
+I also added a minimal local `jsonwebtoken` type declaration because the installed package in this repo does not ship TypeScript types.
