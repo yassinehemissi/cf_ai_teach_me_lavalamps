@@ -1791,3 +1791,67 @@ Cloudflare Workers AI unsupported response shape. ... i don't see a problem with
 I confirmed the payload itself was fine and the bug was in our extractor, which rejected the JSON envelope object because it only recognized string fields like `text`, `content`, or `response`.
 I updated the extractor so function-call/final envelope objects are serialized back to JSON, which matches what the parser node expects next.
 I also kept a generic object fallback serialization so similar structured Workers AI outputs do not fail for the same reason again.
+
+### User Prompt
+validate the resume payloads tools stricter as they are deterministic already
+
+### 3-Line Answer Summary
+I narrowed the resume payload contract so the client now only acknowledges completion of the pending action instead of sending duplicated command or frame data back to the server.
+On resume, the server now rebuilds the canonical control result from the checkpointed action and requires matching `entropyContext` for entropy runs before constructing the tool result fed back into the graph.
+I verified the stricter resume-validation flow with a successful production build and targeted lint run.
+
+### User Prompt
+set quota on dev to disabled
+
+### 3-Line Answer Summary
+I disabled quota enforcement at the server quota source in development only, so chat checks, quota reads, and increments all short-circuit before any D1 quota logic runs.
+In development the server now returns a non-exhausting quota snapshot with full remaining messages, which keeps the UI consistent without adding client-side exceptions.
+I verified the change with targeted lint on the quota helper and a successful production build.
+
+### User Prompt
+the agent is currently failing if the request isn't a tool call; this is typical because of error catching condition on the envelop step; make sure you redirect to a typical chat answer if no tool calling is explicitely mentionnned
+
+### 3-Line Answer Summary
+I relaxed the envelope parser so plain prose responses from the model now become normal final chat answers instead of being rejected as invalid structured actions.
+The fallback stays narrow: malformed structured JSON still fails visibly, but non-JSON explanatory output now routes to the standard final-response path.
+I verified the change with targeted lint on the parser file and a successful production build.
+
+### User Prompt
+give me a console.lo gon the result before parsing
+
+### 3-Line Answer Summary
+I added a targeted server log in the parse node so the raw model text is printed immediately before the envelope parsing step runs.
+That log now shows the exact string the graph is trying to interpret as either a function-call envelope or a normal final answer.
+I kept the change local to the parser for debugging clarity without altering the rest of the graph flow.
+
+### User Prompt
+looksLikeStructuredEnvelope will always return true as our agent is system prompted to return that form; add more console.log on parsing to identity the issuee in parsing (revert the condition on failure)
+
+### 3-Line Answer Summary
+I removed the prose-fallback branch from the parser and restored strict failure behavior for invalid envelopes, since the agent is indeed supposed to always return the structured form.
+I added separate logs for the raw model text, the JSON-parsed candidate, JSON parse failures, and the flattened Zod validation errors so the exact failing stage is visible.
+The change stays local to the parser and is meant purely to surface the envelope bug clearly before we decide on the final parsing fix.
+
+### User Prompt
+i identified the problem; the current json answer can contain rekatex which uses escape to render latex on ui run a replace for all \ with \\ which sanitizes the input before serializaation
+
+### 3-Line Answer Summary
+I updated the envelope parser to retry JSON parsing after replacing every backslash with a doubled backslash, so LaTeX-style content like `\alpha` no longer breaks the structured response.
+The parser now logs both the initial JSON parse failure and the sanitized retry path, which should make it clear whether the backslash sanitization resolved the issue.
+The change is localized to the parser retry path and leaves the rest of the graph and client contract unchanged.
+
+### User Prompt
+perfect remove console.logs now
+
+### 3-Line Answer Summary
+I removed the temporary debugging logs from both the envelope parser and the Workers AI response normalizer now that the structured-response failure mode was identified.
+The sanitized backslash retry remains in place, but the parser and LLM wrapper are quiet again on normal and failing paths.
+Only the functional fixes remain; the temporary console diagnostics are gone.
+
+### User Prompt
+the entropy latest context from client side isn't being parsed correctly on server which causes the sever to refuse the request recheck the schema match
+
+### 3-Line Answer Summary
+I rechecked the client entropy-context builder against the server contract and widened the runtime schema boundary rather than the domain model, since the static shapes already matched.
+The server schema now coerces numeric fields at the edge and defaults a missing `frames` array to `[]`, which makes the action payload more resilient to client/server serialization drift.
+I verified the change with targeted lint on the chat schema file and a successful production build.

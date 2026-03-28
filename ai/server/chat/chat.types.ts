@@ -38,17 +38,13 @@ export type ChatClientAction =
 
 export type ControlSimulationToolResult = {
   actionId: string;
-  command: Extract<SimulationCommand, { kind: "set-simulation-parameter" }>;
   status: "completed";
-  summary: string;
   toolName: "controlSimulation";
 };
 
 export type RunEntropyCaptureToolResult = {
   actionId: string;
-  frameCount: number;
   status: "completed";
-  summary: string;
   toolName: "runEntropyCapture";
 };
 

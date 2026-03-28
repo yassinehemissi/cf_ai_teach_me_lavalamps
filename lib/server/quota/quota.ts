@@ -19,10 +19,18 @@ export type UserQuotaState = {
 };
 
 export async function getUserDailyQuota(userId: string) {
+  if (isQuotaDisabledInDevelopment()) {
+    return getDevelopmentQuotaState(userId);
+  }
+
   return getCurrentUserQuota(userId);
 }
 
 export async function ensureUserHasDailyQuota(userId: string) {
+  if (isQuotaDisabledInDevelopment()) {
+    return getDevelopmentQuotaState(userId);
+  }
+
   const quota = await getCurrentUserQuota(userId);
 
   if (quota.quota >= quota.maxQuota) {
@@ -38,6 +46,10 @@ export async function incrementUserDailyQuotaUsage(
   userId: string,
   usageCount: number,
 ) {
+  if (isQuotaDisabledInDevelopment()) {
+    return getDevelopmentQuotaState(userId);
+  }
+
   if (!Number.isFinite(usageCount) || usageCount <= 0) {
     return getCurrentUserQuota(userId);
   }
@@ -170,4 +182,18 @@ function toInteger(value: number | string, fallback: number) {
     typeof value === "number" ? value : Number.parseInt(value, 10);
 
   return Number.isFinite(normalizedValue) ? normalizedValue : fallback;
+}
+
+function isQuotaDisabledInDevelopment() {
+  return process.env.NODE_ENV === "development";
+}
+
+function getDevelopmentQuotaState(userId: string): UserQuotaState {
+  return {
+    maxQuota: AGENT_DAILY_USER_QUOTA_LIMIT,
+    quota: 0,
+    remainingQuota: AGENT_DAILY_USER_QUOTA_LIMIT,
+    resetAtIso: getNextUtcReset(new Date()).toISOString(),
+    userId,
+  };
 }

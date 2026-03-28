@@ -41,10 +41,6 @@ export async function invokeCloudflareWorkersAI(messages: BaseMessage[]) {
   const text = extractCloudflareText(output);
 
   if (!text) {
-    console.log("Cloudflare Workers AI unsupported response shape.", {
-      extractedOutput: serializeForLog(output),
-      payload: serializeForLog(payload),
-    });
     throw new Error("Cloudflare Workers AI returned an empty or unsupported chat response shape.");
   }
 
@@ -98,12 +94,4 @@ function extractCloudflareText(value: unknown): string {
   }
 
   return JSON.stringify(value);
-}
-
-function serializeForLog(value: unknown) {
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
 }
