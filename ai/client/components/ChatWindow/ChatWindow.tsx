@@ -63,29 +63,12 @@ export function ChatWindow({
           </div>
         ) : null}
 
-        {state.intent || state.retrievedTools.length > 0 ? (
+        {state.memorySummaryStored ? (
           <div className="rounded-2xl border border-stone-800 bg-stone-900/70 px-4 py-3 text-xs text-stone-300">
             <p className="uppercase tracking-[0.25em] text-stone-500">
-              Agent State
+              Memory
             </p>
-            {state.intent ? (
-              <p className="mt-3">Intent: {state.intent}</p>
-            ) : null}
-            {state.memorySummaryStored ? (
-              <p className="mt-2">Memory summary stored for this user.</p>
-            ) : null}
-            {state.entropyContextUsed ? (
-              <p className="mt-2">Latest entropy capture context was included.</p>
-            ) : null}
-            {state.retrievedTools.length > 0 ? (
-              <div className="mt-3 space-y-2">
-                {state.retrievedTools.map((tool) => (
-                  <p key={tool.toolName}>
-                    {tool.title}: {tool.usage}
-                  </p>
-                ))}
-              </div>
-            ) : null}
+            <p className="mt-3">A new memory summary was stored for this user.</p>
           </div>
         ) : null}
       </div>

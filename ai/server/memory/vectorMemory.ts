@@ -2,7 +2,10 @@ import "server-only";
 
 import type { AI } from "cloudflare/resources/ai/ai";
 
-import type { AgentMemoryRecord, AgentUserMetadata } from "../types/agent.types";
+import type {
+  ChatMemoryRecord,
+  ChatUserMetadata,
+} from "../chat/chat.types";
 import { getAIEnvironment } from "../config/ai.config";
 import { createCloudflareClient } from "../utils/cloudflareClient";
 
@@ -16,8 +19,8 @@ type StoredVectorRecord = {
 };
 
 export async function appendMemorySummary(
-  user: AgentUserMetadata,
-  record: AgentMemoryRecord,
+  user: ChatUserMetadata,
+  record: ChatMemoryRecord,
 ) {
   const environment = getAIEnvironment();
   const embedding = await embedText(record.summary);
@@ -39,7 +42,7 @@ export async function appendMemorySummary(
 }
 
 export async function loadRelevantMemory(
-  user: AgentUserMetadata,
+  user: ChatUserMetadata,
   query: string,
 ) {
   const environment = getAIEnvironment();
@@ -61,28 +64,28 @@ export async function loadRelevantMemory(
   return matches
     .map((match) => toMemoryRecord(match))
     .filter(
-      (record): record is AgentMemoryRecord =>
+      (record): record is ChatMemoryRecord =>
         record !== null && record.userId === user.userId,
     )
     .slice(0, MEMORY_QUERY_LIMIT);
 }
 
-export function createAgentMemoryRecord({
+export function createChatMemoryRecord({
   summary,
   tags,
   user,
 }: {
   summary: string;
   tags: string[];
-  user: AgentUserMetadata;
-}): AgentMemoryRecord {
+  user: ChatUserMetadata;
+}) {
   return {
     id: `${user.userId}:${Date.now()}`,
     summary,
     tags,
     userId: user.userId,
     writtenAtIso: new Date().toISOString(),
-  };
+  } satisfies ChatMemoryRecord;
 }
 
 async function embedText(text: string) {
@@ -135,12 +138,15 @@ function toMemoryRecord(record: StoredVectorRecord) {
   }
 
   return {
-    id: typeof record.id === "string" ? record.id : `${metadata.userId}:${metadata.writtenAtIso}`,
+    id:
+      typeof record.id === "string"
+        ? record.id
+        : `${metadata.userId}:${metadata.writtenAtIso}`,
     summary: metadata.summary,
     tags: metadata.tags.filter((tag): tag is string => typeof tag === "string"),
     userId: metadata.userId,
     writtenAtIso: metadata.writtenAtIso,
-  } satisfies AgentMemoryRecord;
+  } satisfies ChatMemoryRecord;
 }
 
 function toMetadataRecord(metadata: unknown) {

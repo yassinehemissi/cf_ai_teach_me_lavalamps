@@ -11,6 +11,9 @@
   },
   "dependencies": {
     "@cloudflare/ai-chat": "^0.2.5",
+    "@langchain/cloudflare": "^1.0.4",
+    "@langchain/core": "^1.1.36",
+    "@langchain/langgraph": "^1.2.6",
     "@react-three/fiber": "^9.5.0",
     "@types/bcrypt": "^6.0.0",
     "@types/three": "^0.183.1",

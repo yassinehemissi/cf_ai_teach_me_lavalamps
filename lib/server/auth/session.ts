@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cookies } from "next/headers";
 import type { NextRequest, NextResponse } from "next/server";
 
 import {
@@ -44,6 +45,20 @@ export async function getSessionFromRequest(
   request: NextRequest,
 ): Promise<SessionClaims | null> {
   const token = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+
+  return getSessionFromToken(token);
+}
+
+export async function getSessionFromCookies(): Promise<SessionClaims | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
+  return getSessionFromToken(token);
+}
+
+async function getSessionFromToken(
+  token: string | undefined,
+): Promise<SessionClaims | null> {
 
   if (!token) {
     return null;
