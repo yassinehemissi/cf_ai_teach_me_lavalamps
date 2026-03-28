@@ -1,29 +1,23 @@
 import "server-only";
 
+import type { BaseMessage } from "@langchain/core/messages";
+
+import { AGENT_MEMORY_CONTEXT_THRESHOLD } from "../constants/agent.constants";
+import type {
+  ChatMemoryRecord,
+  ChatUserMetadata,
+} from "../chat/chat.types";
+import { toMemorySummaryLines, extractMessageText } from "../chat/utils/messageText";
+import { MEMORY_SUMMARY_PROMPT } from "../prompts/memoryPrompt";
 import {
-  AGENT_MEMORY_CONTEXT_THRESHOLD,
-} from "../constants/agent.constants";
-import {
-  BASE_AGENT_SYSTEM_PROMPT,
-  MEMORY_SUMMARY_SYSTEM_PROMPT,
-} from "../prompts/systemPrompts";
-import {
-  createAgentMemoryRecord,
   appendMemorySummary,
+  createChatMemoryRecord,
   loadRelevantMemory,
 } from "./vectorMemory";
-import type {
-  AgentChatMessage,
-  AgentMemoryRecord,
-  AgentUserMetadata,
-} from "../types/agent.types";
 
 const CONTEXT_CHARACTER_BUDGET = 12_000;
 
-export async function loadUserMemory(
-  user: AgentUserMetadata,
-  query: string,
-) {
+export async function loadUserMemory(user: ChatUserMetadata, query: string) {
   return loadRelevantMemory(user, query);
 }
 
@@ -31,8 +25,8 @@ export async function maybePersistConversationSummary({
   messages,
   user,
 }: {
-  messages: AgentChatMessage[];
-  user: AgentUserMetadata;
+  messages: BaseMessage[];
+  user: ChatUserMetadata;
 }) {
   const contextRatio = estimateContextUsage(messages) / CONTEXT_CHARACTER_BUDGET;
 
@@ -41,7 +35,7 @@ export async function maybePersistConversationSummary({
   }
 
   const summary = summarizeMessages(messages);
-  const record = createAgentMemoryRecord({
+  const record = createChatMemoryRecord({
     summary,
     tags: ["chat-summary"],
     user,
@@ -51,37 +45,24 @@ export async function maybePersistConversationSummary({
   return record;
 }
 
-export function buildMemoryContext(memoryRecords: AgentMemoryRecord[]) {
+export function buildMemoryContext(memoryRecords: ChatMemoryRecord[]) {
   if (memoryRecords.length === 0) {
     return "";
   }
 
   return [
-    MEMORY_SUMMARY_SYSTEM_PROMPT,
+    MEMORY_SUMMARY_PROMPT,
     ...memoryRecords.slice(-5).map((record) => `- ${record.summary}`),
   ].join("\n");
 }
 
-export function buildPromptContext(messages: AgentChatMessage[]) {
-  return [
-    BASE_AGENT_SYSTEM_PROMPT,
-    ...messages.map((message) => `${message.role.toUpperCase()}: ${message.content}`),
-  ].join("\n");
+function estimateContextUsage(messages: BaseMessage[]) {
+  return messages.reduce(
+    (total, message) => total + extractMessageText(message).length,
+    0,
+  );
 }
 
-function estimateContextUsage(messages: AgentChatMessage[]) {
-  return messages.reduce((total, message) => total + message.content.length, 0);
-}
-
-function summarizeMessages(messages: AgentChatMessage[]) {
-  const relevantMessages = messages.slice(-8).map((message) => {
-    const clippedContent =
-      message.content.length > 180
-        ? `${message.content.slice(0, 177)}...`
-        : message.content;
-
-    return `${message.role}: ${clippedContent}`;
-  });
-
-  return relevantMessages.join(" | ");
+function summarizeMessages(messages: BaseMessage[]) {
+  return toMemorySummaryLines(messages).join(" | ");
 }

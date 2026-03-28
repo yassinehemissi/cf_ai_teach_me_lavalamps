@@ -4,8 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 
 import {
   fetchChatQuota,
-  sendChatRequest,
-} from "../../actions/chat.actions";
+  runChatBridge,
+} from "../../bridge/chatBridge";
 import type { ChatMessage } from "../../types/chat.types";
 import type { ChatWindowProps, ChatWindowState } from "./ChatWindow.types";
 import {
@@ -23,15 +23,12 @@ export function useChatWindowState({
 >) {
   const [state, setState] = useState<ChatWindowState>({
     error: null,
-    entropyContextUsed: false,
     input: "",
-    intent: null,
     isSubmitting: false,
     isQuotaReady: false,
     memorySummaryStored: false,
     messagesLeft: MAX_DAILY_CHAT_MESSAGES,
     messages: [],
-    retrievedTools: [],
   });
 
   const hydrateQuotaFromServer = useCallback(async () => {
@@ -107,34 +104,16 @@ export function useChatWindowState({
     }));
 
     try {
-      const response = await sendChatRequest(
-        nextMessages,
-        getEntropyContext?.() ?? null,
-      );
-
-      let localFollowUpMessage: ChatMessage | null = null;
-
-      if (response.command?.kind === "set-simulation-parameter" && onSimulationCommand) {
-        onSimulationCommand(response.command);
-      }
-
-      if (response.command?.kind === "run-entropy-capture" && onEntropyCommand) {
-        const entropySummary = await onEntropyCommand(response.command.frameCount);
-
-        localFollowUpMessage = {
-          role: "assistant",
-          content:
-            entropySummary ??
-            "The entropy run did not produce a summary. Please try again with fewer frames.",
-        };
-      }
+      const response = await runChatBridge(trimmedInput, {
+        getEntropyContext,
+        onEntropyCommand,
+        onSimulationCommand,
+      });
       const quota = await fetchChatQuota();
       const usageCount = normalizeUsageCount(quota.quota);
 
       setState((currentState) => ({
         ...currentState,
-        entropyContextUsed: response.entropyContextUsed,
-        intent: response.intent,
         isSubmitting: false,
         memorySummaryStored: response.memorySummaryStored,
         messagesLeft: getMessagesLeft(usageCount),
@@ -144,9 +123,7 @@ export function useChatWindowState({
             role: "assistant",
             content: response.answer,
           },
-          ...(localFollowUpMessage ? [localFollowUpMessage] : []),
         ],
-        retrievedTools: response.retrievedTools,
       }));
     } catch (error) {
       setState((currentState) => ({
