@@ -15,9 +15,9 @@ import type {
 } from "./chat.types";
 import { agent } from "./nodes/agent";
 import { finalize } from "./nodes/finalize";
+import { parseFunctionCall } from "./nodes/parseFunctionCall";
 import { persistMemory } from "./nodes/persistMemory";
 import { prepareContext } from "./nodes/prepareContext";
-import { tools } from "./nodes/tools";
 
 let compiledChatGraph: ReturnType<typeof buildChatGraph> | null = null;
 
@@ -119,17 +119,16 @@ function buildChatGraph() {
   return new StateGraph(ChatState)
     .addNode("prepareContext", prepareContext)
     .addNode("agent", agent)
-    .addNode("tools", tools)
+    .addNode("parseFunctionCall", parseFunctionCall)
     .addNode("persistMemory", persistMemory)
     .addNode("finalize", finalize)
     .addEdge(START, "prepareContext")
     .addEdge("prepareContext", "agent")
-    .addConditionalEdges("agent", routeAfterAgent, {
-      finalize: "finalize",
+    .addEdge("agent", "parseFunctionCall")
+    .addConditionalEdges("parseFunctionCall", routeAfterAgent, {
       persistMemory: "persistMemory",
-      tools: "tools",
+      finalize: "finalize",
     })
-    .addEdge("tools", "finalize")
     .addEdge("persistMemory", "finalize")
     .addEdge("finalize", END)
     .compile({

@@ -11,7 +11,10 @@ const FALLBACK_FAILURE_MESSAGE =
 export async function finalize(state: ChatStateValue) {
   if (state.finalResponse) {
     return {
-      finalResponse: state.finalResponse,
+      finalResponse: {
+        ...state.finalResponse,
+        memorySummaryStored: state.memorySummaryStored,
+      },
     };
   }
 

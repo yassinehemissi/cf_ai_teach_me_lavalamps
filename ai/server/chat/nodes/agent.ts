@@ -1,20 +1,19 @@
 import "server-only";
 
-import { SystemMessage } from "@langchain/core/messages";
+import { AIMessage, SystemMessage } from "@langchain/core/messages";
 
-import { createBoundChatModel } from "../../llm/bindTools";
+import { invokeCloudflareWorkersAI } from "../../llm/cloudflareWorkersAi";
 import { CHAT_AGENT_SYSTEM_PROMPT } from "../../prompts/systemPrompt";
 import type { ChatStateValue } from "../chat.state";
 
 export async function agent(state: ChatStateValue) {
-  const model = createBoundChatModel();
-  const response = await model.invoke([
+  const responseText = await invokeCloudflareWorkersAI([
     new SystemMessage(buildSystemPrompt(state)),
     ...state.messages,
   ]);
 
   return {
-    messages: [response],
+    messages: [new AIMessage(responseText)],
   };
 }
 
