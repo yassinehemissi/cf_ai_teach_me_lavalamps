@@ -2,6 +2,10 @@ import { z } from "zod";
 
 import { MAX_CHAT_USER_MESSAGE_LENGTH } from "@/ai/constants/chat.constants";
 
+const nonNegativeIntSchema = z.coerce.number().int().nonnegative();
+const positiveIntSchema = z.coerce.number().int().positive();
+const nonNegativeNumberSchema = z.coerce.number().nonnegative();
+
 const parameterKeySchema = z.enum([
   "buoyancy",
   "damping",
@@ -11,32 +15,32 @@ const parameterKeySchema = z.enum([
 
 const chatEntropyAggregateSchema = z
   .object({
-    finalDigestByteLength: z.number().int().nonnegative(),
+    finalDigestByteLength: nonNegativeIntSchema,
     finalDigestHex: z.string().min(1),
-    finalPoolByteLength: z.number().int().nonnegative(),
-    frameCount: z.number().int().nonnegative(),
-    totalExternalEntropyBytesLength: z.number().int().nonnegative(),
+    finalPoolByteLength: nonNegativeIntSchema,
+    frameCount: nonNegativeIntSchema,
+    totalExternalEntropyBytesLength: nonNegativeIntSchema,
   })
   .strict();
 
 const chatEntropyFrameSchema = z
   .object({
     digestHex: z.string().min(1),
-    frameIndex: z.number().int().nonnegative(),
-    height: z.number().int().positive(),
-    rgbaByteLength: z.number().int().nonnegative(),
-    sourceHeight: z.number().int().positive(),
-    sourceWidth: z.number().int().positive(),
-    timingNoiseByteLength: z.number().int().nonnegative(),
-    totalTimingMs: z.number().nonnegative(),
-    width: z.number().int().positive(),
+    frameIndex: nonNegativeIntSchema,
+    height: positiveIntSchema,
+    rgbaByteLength: nonNegativeIntSchema,
+    sourceHeight: positiveIntSchema,
+    sourceWidth: positiveIntSchema,
+    timingNoiseByteLength: nonNegativeIntSchema,
+    totalTimingMs: nonNegativeNumberSchema,
+    width: positiveIntSchema,
   })
   .strict();
 
 export const chatEntropyContextSchema = z
   .object({
     aggregate: chatEntropyAggregateSchema,
-    frames: z.array(chatEntropyFrameSchema),
+    frames: z.array(chatEntropyFrameSchema).default([]),
   })
   .strict();
 
@@ -71,9 +75,7 @@ export const runEntropyCaptureActionArgsSchema = z
 export const controlSimulationToolResultSchema = z
   .object({
     actionId: z.string().min(1),
-    command: controlSimulationActionArgsSchema,
     status: z.literal("completed"),
-    summary: z.string().min(1),
     toolName: z.literal("controlSimulation"),
   })
   .strict();
@@ -81,9 +83,7 @@ export const controlSimulationToolResultSchema = z
 export const runEntropyCaptureToolResultSchema = z
   .object({
     actionId: z.string().min(1),
-    frameCount: z.number().int().min(1).max(12),
     status: z.literal("completed"),
-    summary: z.string().min(1),
     toolName: z.literal("runEntropyCapture"),
   })
   .strict();

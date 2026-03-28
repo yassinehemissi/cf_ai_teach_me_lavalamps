@@ -21,9 +21,9 @@ export async function parseFunctionCall(state: ChatStateValue) {
     };
   }
 
-  const parsedEnvelope = agentEnvelopeSchema.safeParse(
-    parseAgentEnvelope(extractMessageText(lastMessage)),
-  );
+  const rawContent = extractMessageText(lastMessage);
+  const parsedContent = parseAgentEnvelope(rawContent);
+  const parsedEnvelope = agentEnvelopeSchema.safeParse(parsedContent);
 
   if (!parsedEnvelope.success) {
     return {
@@ -62,6 +62,13 @@ export async function parseFunctionCall(state: ChatStateValue) {
 function parseAgentEnvelope(content: string) {
   try {
     return JSON.parse(content) as unknown;
+  } catch {
+  }
+
+  try {
+    const sanitizedContent = content.replace(/\\/g, "\\\\");
+
+    return JSON.parse(sanitizedContent) as unknown;
   } catch {
     return null;
   }

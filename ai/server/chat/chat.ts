@@ -9,6 +9,7 @@ import { getChatCheckpointer } from "../checkpoint/checkpointer";
 import { routeAfterAgent } from "./edges/routeAfterAgent";
 import { ChatState } from "./chat.state";
 import type {
+  ChatClientAction,
   ChatClientToolResult,
   ChatServerResponse,
   ChatUserMetadata,
@@ -76,11 +77,7 @@ export async function resumeChatTurn({
 }) {
   const snapshot = await getChatGraphState(user.userId);
   const stateValues = snapshot.values as {
-    pendingClientAction?: {
-      actionId: string;
-      toolCallId: string;
-      toolName: string;
-    } | null;
+    pendingClientAction?: ChatClientAction | null;
   };
   const pendingClientAction = stateValues.pendingClientAction;
 
@@ -92,6 +89,12 @@ export async function resumeChatTurn({
     throw new Error("The client action being resumed does not match the active thread state.");
   }
 
+  const canonicalToolResult = buildCanonicalToolResult({
+    entropyContext: entropyContext ?? null,
+    pendingClientAction,
+    toolResult,
+  });
+
   const state = await getChatGraph().invoke(
     {
       entropyContext: entropyContext ?? null,
@@ -99,8 +102,8 @@ export async function resumeChatTurn({
       memorySummaryStored: false,
       messages: [
         new ToolMessage({
-          artifact: toolResult,
-          content: JSON.stringify(toolResult),
+          artifact: canonicalToolResult,
+          content: JSON.stringify(canonicalToolResult),
           name: pendingClientAction.toolName,
           status: "success",
           tool_call_id: pendingClientAction.toolCallId,
@@ -151,4 +154,62 @@ function getThreadConfig(userId: string) {
       thread_id: userId,
     },
   };
+}
+
+function buildCanonicalToolResult({
+  entropyContext,
+  pendingClientAction,
+  toolResult,
+}: {
+  entropyContext: ChatEntropyContext | null;
+  pendingClientAction: ChatClientAction;
+  toolResult: ChatClientToolResult;
+}) {
+  if (toolResult.toolName !== pendingClientAction.toolName) {
+    throw new Error("The resumed tool result does not match the pending tool type.");
+  }
+
+  if (toolResult.status !== "completed") {
+    throw new Error("Only completed client tool results are accepted.");
+  }
+
+  if (pendingClientAction.toolName === "controlSimulation") {
+    return {
+      actionId: pendingClientAction.actionId,
+      command: pendingClientAction.args,
+      status: "completed" as const,
+      summary: buildSimulationSummary(pendingClientAction),
+      toolName: "controlSimulation" as const,
+    };
+  }
+
+  if (!entropyContext) {
+    throw new Error("Entropy resume requires the latest entropy context.");
+  }
+
+  if (entropyContext.aggregate.frameCount !== pendingClientAction.args.frameCount) {
+    throw new Error("The entropy context does not match the pending frame count.");
+  }
+
+  return {
+    actionId: pendingClientAction.actionId,
+    frameCount: pendingClientAction.args.frameCount,
+    status: "completed" as const,
+    summary: [
+      `Entropy run completed for ${entropyContext.aggregate.frameCount} frame(s).`,
+      `Final pool bytes: ${entropyContext.aggregate.finalPoolByteLength}.`,
+      `Final SHA-256: ${entropyContext.aggregate.finalDigestHex}.`,
+    ].join(" "),
+    toolName: "runEntropyCapture" as const,
+  };
+}
+
+function buildSimulationSummary(
+  action: Extract<ChatClientAction, { toolName: "controlSimulation" }>,
+) {
+  if (action.args.mode === "absolute") {
+    return `Set ${action.args.key} to ${action.args.value}.`;
+  }
+
+  return `Adjusted ${action.args.key} by ${action.args.delta}.`;
 }

@@ -12,17 +12,7 @@ export async function applySimulationCommand(
 
   return {
     actionId: action.actionId,
-    command: action.args,
     status: "completed" as const,
-    summary: buildSimulationSummary(action),
     toolName: "controlSimulation" as const,
   };
-}
-
-function buildSimulationSummary(action: ControlSimulationClientAction) {
-  if (action.args.mode === "absolute") {
-    return `Set ${action.args.key} to ${action.args.value}.`;
-  }
-
-  return `Adjusted ${action.args.key} by ${action.args.delta}.`;
 }

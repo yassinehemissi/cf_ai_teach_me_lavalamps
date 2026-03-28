@@ -38,7 +38,7 @@ export function Simulation() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top,_#2f221f,_#120d0c_55%,_#080607)] text-stone-100">
-          <section className="absolute inset-x-0 top-0 z-10 flex items-center justify-between px-6 py-5">
+          <section className="absolute inset-x-0 top-0 z-10 flex items-start justify-between px-6 py-5">
             <div>
               <p className="text-xs uppercase tracking-[0.35em] text-stone-400">
                 Room Simulation
@@ -53,10 +53,6 @@ export function Simulation() {
               </div>
             </div>
             <div className="flex items-center gap-4">
-              <p className="max-w-lg text-right text-sm text-stone-300">
-                A room-scale 4x4 lamp wall mounted on a non-door surface, powered by
-                reusable lamp instances and shared scene lighting.
-              </p>
               <div className="flex flex-col items-end gap-2">
                 <label className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-stone-400">
                   Frames
