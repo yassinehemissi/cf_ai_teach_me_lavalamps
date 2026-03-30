@@ -331,12 +331,14 @@ function computeAnchoredBlobPosition(
   const phase = hashBlobId(blob.id) * Math.PI * 2;
   const frequency = blob.motion.wobbleFrequency ?? 0;
   const wobbleTime = simulationTimeSeconds * frequency * Math.PI * 2;
+  const wobbleAmplitude =
+    blob.motion.wobbleAmplitude ?? new Vector3(0, 0, 0);
 
   return blob.motion.anchorPosition.clone().add(
     new Vector3(
-      Math.sin(wobbleTime + phase) * blob.motion.wobbleAmplitude.x,
-      Math.sin(wobbleTime * 0.71 - phase * 0.43) * blob.motion.wobbleAmplitude.y,
-      Math.cos(wobbleTime * 0.87 + phase * 0.58) * blob.motion.wobbleAmplitude.z,
+      Math.sin(wobbleTime + phase) * wobbleAmplitude.x,
+      Math.sin(wobbleTime * 0.71 - phase * 0.43) * wobbleAmplitude.y,
+      Math.cos(wobbleTime * 0.87 + phase * 0.58) * wobbleAmplitude.z,
     ),
   );
 }

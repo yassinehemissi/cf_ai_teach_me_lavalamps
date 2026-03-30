@@ -125,7 +125,7 @@ export type PhysicsSimulatorConfig = {
 };
 
 export type ScalarFieldSnapshot = {
-  activeIndices: Uint16Array;
+  activeIndices: Uint16Array<ArrayBufferLike>;
   bounds: SimulationBounds;
   resolution: FieldResolution;
   activeCount: number;

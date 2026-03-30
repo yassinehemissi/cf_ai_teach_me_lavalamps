@@ -13,7 +13,7 @@ type RebuildScalarFieldArgs = {
 
 type ScalarFieldStats = {
   activeCount: number;
-  activeIndices: Uint16Array;
+  activeIndices: Uint16Array<ArrayBufferLike>;
   minValue: number;
   maxValue: number;
 };
@@ -81,7 +81,7 @@ export function rebuildScalarField({
 
   return {
     activeCount,
-    activeIndices: Uint16Array.from(activeIndices),
+    activeIndices: new Uint16Array(activeIndices),
     minValue: activeCount > 0 ? minValue : 0,
     maxValue: activeCount > 0 ? maxValue : 0,
   };

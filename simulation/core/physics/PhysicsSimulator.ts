@@ -61,7 +61,7 @@ export class PhysicsSimulator extends LavaLampSimulation {
   private blobs: InternalBlobState[];
   private fieldDirty = false;
   private fieldActiveCount = 0;
-  private fieldActiveIndices = new Uint16Array(0);
+  private fieldActiveIndices: Uint16Array<ArrayBufferLike> = new Uint16Array(0);
   private fieldMinValue = 0;
   private fieldMaxValue = 0;
 
