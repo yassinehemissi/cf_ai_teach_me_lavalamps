@@ -13,6 +13,18 @@ const FIXED_TIMESTEP_MS = 1000 / 120;
 const THERMAL_CYCLE_FREQUENCY = 0.18;
 const MIN_BLOB_SPAWN_DISTANCE = 0.32;
 const MAX_BLOB_SPAWN_ATTEMPTS = 18;
+const CAP_BLOB_COUNT_PER_CLUSTER = 4;
+const CAP_BLOB_INFLUENCE_RADIUS = 0.26;
+const CAP_BLOB_MASS = 1.1;
+const CAP_BOTTOM_CLUSTER_STRENGTH = 1.52;
+const CAP_TOP_CLUSTER_STRENGTH = 1.4;
+const CAP_BOTTOM_VISUAL_HEIGHT = 0.08;
+const CAP_TOP_VISUAL_HEIGHT = 0.92;
+const CAP_LATERAL_WOBBLE_RATIO = 0.08;
+const CAP_VERTICAL_WOBBLE_RATIO = 0.012;
+const CAP_BOTTOM_TEMPERATURE = 0.88;
+const CAP_TOP_TEMPERATURE = 0.36;
+const CAP_BASE_WOBBLE_FREQUENCY = 0.16;
 
 export function createLampRenderer(
   preparedModel: PreparedLampModel,
@@ -37,7 +49,6 @@ export function createLampRenderer(
         },
         epsilon: 0.085,
         mask: preparedModel.sliceMask.mask,
-        baseContribution: createBaseFieldContribution(preparedModel.sliceMask),
       },
       boundary: {
         bounds: preparedModel.lavaBounds,
@@ -72,25 +83,30 @@ function createInitialBlobs(sliceMask: LavaSliceMask, lampSeed: number) {
   const random = createSeededRandom(lampSeed);
   const positions = [] as Array<{ x: number; y: number; z: number }>;
 
-  return Array.from({ length: INITIAL_BLOB_COUNT }, (_, index) => {
-    const position = sampleSpawnPoint(sliceMask, random, positions);
+  return [
+    ...Array.from({ length: INITIAL_BLOB_COUNT }, (_, index) => {
+      const position = sampleSpawnPoint(sliceMask, random, positions);
 
-    positions.push(position);
+      positions.push(position);
 
-    return {
-      id: `blob-${lampSeed}-${index}`,
-      position,
-      velocity: {
-        x: (random() - 0.5) * 0.08,
-        y: (random() - 0.5) * 0.02,
-        z: (random() - 0.5) * 0.08,
-      },
-      temperature: 0.76 + random() * 0.24,
-      influenceRadius: 0.24 + random() * 0.12,
-      strength: 0.28 + random() * 0.16,
-      mass: 1,
-    };
-  });
+      return {
+        id: `blob-${lampSeed}-${index}`,
+        position,
+        velocity: {
+          x: (random() - 0.5) * 0.08,
+          y: (random() - 0.5) * 0.02,
+          z: (random() - 0.5) * 0.08,
+        },
+        temperature: 0.76 + random() * 0.24,
+        influenceRadius: 0.24 + random() * 0.12,
+        strength: 0.28 + random() * 0.16,
+        mass: 1,
+        motion: { kind: "dynamic" as const },
+      };
+    }),
+    ...createCapBlobs(sliceMask, lampSeed, "bottom"),
+    ...createCapBlobs(sliceMask, lampSeed, "top"),
+  ];
 }
 
 function sampleSpawnPoint(
@@ -205,73 +221,108 @@ function createSeededRandom(seed: number): () => number {
   };
 }
 
-function createBaseFieldContribution(sliceMask: LavaSliceMask) {
+function createCapBlobs(
+  sliceMask: LavaSliceMask,
+  lampSeed: number,
+  side: "bottom" | "top",
+) {
   const [axisA, axisB] = sliceMask.crossAxes;
-  const fillLevel = sliceMask.thermalSign === 1 ? 0.62 : 0.38;
-  const fillBand = 0.14;
+  const slice = findSliceNearestVisualHeight(
+    sliceMask,
+    side === "bottom" ? CAP_BOTTOM_VISUAL_HEIGHT : CAP_TOP_VISUAL_HEIGHT,
+  );
+  const baseStrength =
+    side === "bottom"
+      ? CAP_BOTTOM_CLUSTER_STRENGTH / CAP_BLOB_COUNT_PER_CLUSTER
+      : CAP_TOP_CLUSTER_STRENGTH / CAP_BLOB_COUNT_PER_CLUSTER;
+  const temperature =
+    side === "bottom" ? CAP_BOTTOM_TEMPERATURE : CAP_TOP_TEMPERATURE;
 
-  return (point: { x: number; y: number; z: number }) => {
-    const normalizedHeight = getNormalizedCoordinate(
-      point[sliceMask.thermalAxis],
-      sliceMask.bounds.min[sliceMask.thermalAxis],
-      sliceMask.bounds.max[sliceMask.thermalAxis],
-    );
-    const distanceFromFillTop =
-      sliceMask.thermalSign === 1
-        ? fillLevel - normalizedHeight
-        : normalizedHeight - fillLevel;
+  return Array.from({ length: CAP_BLOB_COUNT_PER_CLUSTER }, (_, index) => {
+    const angle =
+      (index / CAP_BLOB_COUNT_PER_CLUSTER) * Math.PI * 2 +
+      (side === "top" ? Math.PI * 0.25 : 0);
+    const radialFactor = 0.22 + (index % 2) * 0.16;
+    const anchorPosition = {
+      x: (sliceMask.bounds.min.x + sliceMask.bounds.max.x) * 0.5,
+      y: (sliceMask.bounds.min.y + sliceMask.bounds.max.y) * 0.5,
+      z: (sliceMask.bounds.min.z + sliceMask.bounds.max.z) * 0.5,
+    };
 
-    if (distanceFromFillTop <= -fillBand) {
-      return 0;
-    }
+    anchorPosition[sliceMask.thermalAxis] = slice.centerThermal;
+    anchorPosition[axisA] =
+      slice.centerA + Math.cos(angle) * slice.radiusA * radialFactor;
+    anchorPosition[axisB] =
+      slice.centerB + Math.sin(angle) * slice.radiusB * radialFactor;
 
-    const slice =
-      sliceMask.slices[
-        getSliceIndex(
-          point[sliceMask.thermalAxis],
-          sliceMask.bounds.min[sliceMask.thermalAxis],
-          sliceMask.bounds.max[sliceMask.thermalAxis],
-          sliceMask.slices.length,
-        )
-      ];
-    const normalizedA = (point[axisA] - slice.centerA) / slice.radiusA;
-    const normalizedB = (point[axisB] - slice.centerB) / slice.radiusB;
-    const radialDistance = normalizedA * normalizedA + normalizedB * normalizedB;
+    const clampedAnchor = clampPointToBounds(anchorPosition, sliceMask.bounds);
 
-    if (radialDistance > 1) {
-      return 0;
-    }
+    return {
+      id: `cap-${side}-${lampSeed}-${index}`,
+      position: clampedAnchor,
+      velocity: { x: 0, y: 0, z: 0 },
+      temperature,
+      influenceRadius: CAP_BLOB_INFLUENCE_RADIUS,
+      strength: baseStrength,
+      mass: CAP_BLOB_MASS,
+      motion: {
+        kind: "anchored" as const,
+        anchorPosition: clampedAnchor,
+        wobbleAmplitude: createCapWobbleAmplitude(sliceMask, slice),
+        wobbleFrequency: CAP_BASE_WOBBLE_FREQUENCY + index * 0.015,
+      },
+    };
+  });
+}
 
-    const verticalStrength = smoothstep(fillBand, -fillBand, distanceFromFillTop);
-    const radialStrength = smoothstep(1.02, 0.08, radialDistance);
-
-    return 0.24 + verticalStrength * radialStrength * 1.1;
+function createCapWobbleAmplitude(
+  sliceMask: LavaSliceMask,
+  slice: LavaSliceMask["slices"][number],
+) {
+  const amplitude = {
+    x: 0,
+    y: 0,
+    z: 0,
   };
+
+  amplitude[sliceMask.thermalAxis] =
+    getSliceThickness(sliceMask) * CAP_VERTICAL_WOBBLE_RATIO;
+  amplitude[sliceMask.crossAxes[0]] = slice.radiusA * CAP_LATERAL_WOBBLE_RATIO;
+  amplitude[sliceMask.crossAxes[1]] = slice.radiusB * CAP_LATERAL_WOBBLE_RATIO;
+
+  return amplitude;
 }
 
-function getSliceIndex(
-  value: number,
-  min: number,
-  max: number,
-  sliceCount: number,
-): number {
-  if (sliceCount <= 1 || max <= min) {
-    return 0;
-  }
+function findSliceNearestVisualHeight(
+  sliceMask: LavaSliceMask,
+  visualHeight: number,
+) {
+  const targetCoordinate = getThermalCoordinateForVisualHeight(
+    sliceMask,
+    visualHeight,
+  );
 
-  const normalized = getNormalizedCoordinate(value, min, max);
-
-  return Math.min(sliceCount - 1, Math.floor(normalized * sliceCount));
+  return sliceMask.slices.reduce((closestSlice, candidateSlice) =>
+    Math.abs(candidateSlice.centerThermal - targetCoordinate) <
+    Math.abs(closestSlice.centerThermal - targetCoordinate)
+      ? candidateSlice
+      : closestSlice,
+  );
 }
 
-function smoothstep(edge0: number, edge1: number, value: number): number {
-  if (edge0 === edge1) {
-    return value < edge0 ? 0 : 1;
-  }
+function getThermalCoordinateForVisualHeight(
+  sliceMask: LavaSliceMask,
+  visualHeight: number,
+) {
+  const normalizedHeight =
+    sliceMask.thermalSign === 1 ? visualHeight : 1 - visualHeight;
 
-  const t = clamp((value - edge0) / (edge1 - edge0), 0, 1);
-
-  return t * t * (3 - 2 * t);
+  return (
+    sliceMask.bounds.min[sliceMask.thermalAxis] +
+    (sliceMask.bounds.max[sliceMask.thermalAxis] -
+      sliceMask.bounds.min[sliceMask.thermalAxis]) *
+      normalizedHeight
+  );
 }
 
 function clamp(value: number, min: number, max: number): number {

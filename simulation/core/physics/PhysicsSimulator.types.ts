@@ -17,6 +17,21 @@ export type SimulationBounds = {
   max: Vector3Like;
 };
 
+export type DynamicBlobMotion = {
+  kind: "dynamic";
+};
+
+export type AnchoredBlobMotion<TVector = Vector3Like> = {
+  kind: "anchored";
+  anchorPosition: TVector;
+  wobbleAmplitude?: TVector;
+  wobbleFrequency?: number;
+};
+
+export type BlobMotion<TVector = Vector3Like> =
+  | DynamicBlobMotion
+  | AnchoredBlobMotion<TVector>;
+
 export type BlobSeed = {
   id: string;
   position: Vector3Like;
@@ -25,6 +40,7 @@ export type BlobSeed = {
   influenceRadius: number;
   strength: number;
   mass?: number;
+  motion?: BlobMotion;
 };
 
 export type BlobState = {
@@ -35,11 +51,13 @@ export type BlobState = {
   influenceRadius: number;
   strength: number;
   mass: number;
+  motion: BlobMotion;
 };
 
-export type InternalBlobState = Omit<BlobState, "position" | "velocity"> & {
+export type InternalBlobState = Omit<BlobState, "position" | "velocity" | "motion"> & {
   position: Vector3;
   velocity: Vector3;
+  motion: BlobMotion<Vector3>;
 };
 
 export type PhysicsTemperatureConfig = {
@@ -107,8 +125,12 @@ export type PhysicsSimulatorConfig = {
 };
 
 export type ScalarFieldSnapshot = {
+  activeIndices: Uint16Array;
   bounds: SimulationBounds;
   resolution: FieldResolution;
+  activeCount: number;
+  minValue: number;
+  maxValue: number;
   values: Float32Array;
 };
 

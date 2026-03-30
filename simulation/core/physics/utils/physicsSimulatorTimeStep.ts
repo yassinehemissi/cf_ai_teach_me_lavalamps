@@ -32,6 +32,16 @@ export function advanceBlobs({
   );
 
   for (const blob of blobs) {
+    if (blob.motion.kind === "anchored") {
+      advanceAnchoredBlob(
+        blob,
+        boundaryConfig,
+        deltaTimeSeconds,
+        simulationTimeSeconds,
+      );
+      continue;
+    }
+
     updateBlobTemperature(
       blob,
       averageTemperature,
@@ -63,6 +73,10 @@ export function computeBlobForceSnapshot(
   forceConfig: PhysicsForceConfig,
   temperatureConfig: PhysicsTemperatureConfig,
 ): Vector3 {
+  if (blob.motion.kind === "anchored") {
+    return new Vector3();
+  }
+
   return computeTotalForce(
     blob,
     boundaryConfig,
@@ -221,16 +235,18 @@ function computeAverageTemperature(
   blobs: InternalBlobState[],
   ambientTemperature: number,
 ): number {
-  if (blobs.length === 0) {
+  const dynamicBlobs = blobs.filter((blob) => blob.motion.kind === "dynamic");
+
+  if (dynamicBlobs.length === 0) {
     return ambientTemperature;
   }
 
-  const totalTemperature = blobs.reduce(
+  const totalTemperature = dynamicBlobs.reduce(
     (sum, blob) => sum + blob.temperature,
     0,
   );
 
-  return totalTemperature / blobs.length;
+  return totalTemperature / dynamicBlobs.length;
 }
 
 // Computes normalized simulation-space height for thermal bias calculations.
@@ -283,4 +299,44 @@ function hashBlobId(blobId: string): number {
   }
 
   return (hash >>> 0) / 4294967295;
+}
+
+function advanceAnchoredBlob(
+  blob: InternalBlobState,
+  boundaryConfig: PhysicsBoundaryConfig,
+  deltaTimeSeconds: number,
+  simulationTimeSeconds: number,
+): void {
+  const nextPosition = computeAnchoredBlobPosition(
+    blob,
+    simulationTimeSeconds + deltaTimeSeconds,
+  );
+
+  blob.velocity
+    .copy(nextPosition)
+    .sub(blob.position)
+    .divideScalar(Math.max(deltaTimeSeconds, 0.0001));
+  blob.position.copy(nextPosition);
+  projectBlobInsideBoundary(blob, boundaryConfig);
+}
+
+function computeAnchoredBlobPosition(
+  blob: InternalBlobState,
+  simulationTimeSeconds: number,
+): Vector3 {
+  if (blob.motion.kind !== "anchored") {
+    return blob.position.clone();
+  }
+
+  const phase = hashBlobId(blob.id) * Math.PI * 2;
+  const frequency = blob.motion.wobbleFrequency ?? 0;
+  const wobbleTime = simulationTimeSeconds * frequency * Math.PI * 2;
+
+  return blob.motion.anchorPosition.clone().add(
+    new Vector3(
+      Math.sin(wobbleTime + phase) * blob.motion.wobbleAmplitude.x,
+      Math.sin(wobbleTime * 0.71 - phase * 0.43) * blob.motion.wobbleAmplitude.y,
+      Math.cos(wobbleTime * 0.87 + phase * 0.58) * blob.motion.wobbleAmplitude.z,
+    ),
+  );
 }

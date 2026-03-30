@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Canvas } from "@react-three/fiber";
 
 import { AllLamps } from "@/components/organisms/AllLamps/AllLamps";
@@ -16,7 +17,8 @@ import { useSimulationState } from "./Simulation.state";
 import { buildChatEntropyContext } from "./utils/entropyContext";
 
 export function Simulation() {
-  const { room, allLamps, camera } = useSimulationState();
+  const [lampCount, setLampCount] = useState(1);
+  const { room, allLamps, camera } = useSimulationState(lampCount);
   const entropy = useSimulationEntropyState();
   const simulationParameters = useSimulationParameterState(
     allLamps.lamps.map((lamp) => lamp.renderer),
@@ -54,6 +56,21 @@ export function Simulation() {
             </div>
             <div className="flex items-center gap-4">
               <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center gap-3">
+                  <span className="text-xs uppercase tracking-[0.2em] text-stone-400">
+                    Lamps {allLamps.lamps.length}/6
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLampCount((currentCount) => Math.min(currentCount + 1, 6));
+                    }}
+                    disabled={allLamps.lamps.length >= 6}
+                    className="inline-flex items-center justify-center rounded-full border border-stone-700/80 bg-stone-950/60 px-4 py-2 text-sm text-stone-100 transition hover:border-amber-400 hover:text-amber-200 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Add Lamp
+                  </button>
+                </div>
                 <label className="flex items-center gap-3 text-xs uppercase tracking-[0.2em] text-stone-400">
                   Frames
                   <input

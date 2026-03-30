@@ -7,7 +7,7 @@ import { Group } from "three";
 import { LampLiquid } from "./components/LampLiquid/LampLiquid";
 import { useLampState } from "./Lamp.state";
 import type { LampProps } from "./Lamp.types";
-import { DEFAULT_LAVA_COLOR_GRADIENT } from "./utils";
+import { DEFAULT_LAVA_COLOR_GRADIENT, SURFACE_UPDATE_INTERVAL_SECONDS } from "./utils";
 
 export function Lamp({
   preparedModel,
@@ -15,6 +15,7 @@ export function Lamp({
   colorGradient = DEFAULT_LAVA_COLOR_GRADIENT,
 }: LampProps) {
   const lampGroupRef = useRef<Group>(null);
+  const fieldUpdateAccumulatorRef = useRef(0);
   const {
     lampScene,
     modelOffset,
@@ -28,7 +29,19 @@ export function Lamp({
       deltaTimeMs: deltaSeconds * 1000,
       elapsedTimeMs: frameState.clock.elapsedTime * 1000,
     });
-    snapshotRef.current = renderer.getRenderSnapshot();
+    fieldUpdateAccumulatorRef.current += deltaSeconds;
+
+    const nextSnapshot = {
+      ...snapshotRef.current,
+      dynamics: renderer.getDynamicsSnapshot(),
+    };
+
+    if (fieldUpdateAccumulatorRef.current >= SURFACE_UPDATE_INTERVAL_SECONDS) {
+      nextSnapshot.field = renderer.getFieldSnapshot();
+      fieldUpdateAccumulatorRef.current -= SURFACE_UPDATE_INTERVAL_SECONDS;
+    }
+
+    snapshotRef.current = nextSnapshot;
 
     if (!lampGroupRef.current) {
       return;

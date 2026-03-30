@@ -116,4 +116,12 @@ export class LavaLampRenderer extends LavaLampSimulation {
       constraint: this.getConstraintDescriptor(),
     };
   }
+
+  getFieldSnapshot() {
+    return this.physicsSimulator.getFieldSnapshot();
+  }
+
+  getDynamicsSnapshot() {
+    return this.physicsSimulator.getDynamicsSnapshot();
+  }
 }

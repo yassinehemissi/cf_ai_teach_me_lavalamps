@@ -24,7 +24,7 @@ export function LampLiquid({
     () => createMarchingCubes(initialSnapshot.field.resolution.x, colorGradient),
     [colorGradient, initialSnapshot.field.resolution.x],
   );
-  const surfaceUpdateAccumulatorRef = useRef(0);
+  const lastFieldRef = useRef(initialSnapshot.field);
 
   useEffect(() => {
     applySurfaceTransform(
@@ -41,15 +41,13 @@ export function LampLiquid({
   useFrame((frameState, deltaSeconds) => {
     const snapshot = snapshotRef.current;
 
-    surfaceUpdateAccumulatorRef.current += deltaSeconds;
-
-    if (surfaceUpdateAccumulatorRef.current >= SURFACE_UPDATE_INTERVAL_SECONDS) {
+    if (lastFieldRef.current !== snapshot.field) {
       updateMarchingCubesSurface(
         marchingCubes,
         snapshot.field,
         snapshot.dynamics,
       );
-      surfaceUpdateAccumulatorRef.current = 0;
+      lastFieldRef.current = snapshot.field;
     }
 
     updateLavaSurfaceShader(
@@ -62,4 +60,3 @@ export function LampLiquid({
 
   return <primitive object={marchingCubes} position={[0, 0, 0]} scale={[1, 1, 1]} />;
 }
-

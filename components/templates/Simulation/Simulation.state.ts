@@ -9,9 +9,9 @@ import type { SimulationState } from "./Simulation.types";
 
 const CAMERA_VERTICAL_LIFT = 0.8;
 
-export function useSimulationState(): SimulationState {
+export function useSimulationState(lampCount: number): SimulationState {
   const room = useRoomState();
-  const allLamps = useAllLampsState({ wallMount: room.wallMount });
+  const allLamps = useAllLampsState({ lampCount, wallMount: room.wallMount });
 
   return useMemo(() => {
     const boardCenter = allLamps.boards.reduce(
@@ -69,7 +69,7 @@ export function useSimulationState(): SimulationState {
       allLamps,
       camera: {
         position: (() => {
-          position[2] = position[2] - 1; // Adjust the camera's Z position
+          position[2] = position[2] - 1;
           position[1] = position[1] + 3 + CAMERA_VERTICAL_LIFT;
           return position;
         })(),

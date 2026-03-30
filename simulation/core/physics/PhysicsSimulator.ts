@@ -59,6 +59,11 @@ export class PhysicsSimulator extends LavaLampSimulation {
   private accumulatedTimeMs = 0;
   private simulationTimeSeconds = 0;
   private blobs: InternalBlobState[];
+  private fieldDirty = false;
+  private fieldActiveCount = 0;
+  private fieldActiveIndices = new Uint16Array(0);
+  private fieldMinValue = 0;
+  private fieldMaxValue = 0;
 
   // Initializes the simulator, normalizes config, and builds the first field snapshot.
   constructor(placement: LavaLampPlacement, config: PhysicsSimulatorConfig) {
@@ -137,7 +142,7 @@ export class PhysicsSimulator extends LavaLampSimulation {
     }
 
     if (substeps > 0) {
-      this.rebuildFieldSnapshot();
+      this.fieldDirty = true;
     }
   }
 
@@ -187,10 +192,18 @@ export class PhysicsSimulator extends LavaLampSimulation {
 
   // Returns a defensive copy of the current scalar field snapshot.
   getFieldSnapshot(): ScalarFieldSnapshot {
+    if (this.fieldDirty) {
+      this.rebuildFieldSnapshot();
+    }
+
     return {
+      activeCount: this.fieldActiveCount,
+      activeIndices: this.fieldActiveIndices,
       bounds: cloneBounds(this.fieldConfig.bounds),
+      maxValue: this.fieldMaxValue,
+      minValue: this.fieldMinValue,
       resolution: { ...this.fieldConfig.resolution },
-      values: this.fieldValues.slice(),
+      values: this.fieldValues,
     };
   }
 
@@ -241,10 +254,15 @@ export class PhysicsSimulator extends LavaLampSimulation {
 
   // Rebuilds the scalar field from the current blob state.
   private rebuildFieldSnapshot(): void {
-    rebuildScalarField({
+    const stats = rebuildScalarField({
       blobs: this.blobs,
       fieldConfig: this.fieldConfig,
       target: this.fieldValues,
     });
+    this.fieldActiveCount = stats.activeCount;
+    this.fieldActiveIndices = stats.activeIndices;
+    this.fieldMinValue = stats.minValue;
+    this.fieldMaxValue = stats.maxValue;
+    this.fieldDirty = false;
   }
 }

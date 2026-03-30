@@ -16,4 +16,3 @@ export function LockedCamera({ target, position }: LockedCameraProps) {
 
   return null;
 }
-
