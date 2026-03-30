@@ -3,6 +3,7 @@ import { Vector3 } from "three";
 import type {
   BlobSeed,
   InternalBlobState,
+  BlobMotion,
   PhysicsSimulatorConfig,
   Vector3Like,
 } from "../PhysicsSimulator.types";
@@ -39,6 +40,7 @@ export function createInternalBlobState(
     influenceRadius: blob.influenceRadius,
     strength: blob.strength,
     mass: blob.mass ?? defaultBlobMass,
+    motion: createInternalBlobMotion(blob.motion, simulatorConfig),
   };
 }
 
@@ -50,10 +52,53 @@ export function cloneInternalBlobs(
     ...blob,
     position: blob.position.clone(),
     velocity: blob.velocity.clone(),
+    motion: cloneInternalBlobMotion(blob.motion),
   }));
 }
 
 // Converts a serializable vector into a Three.js vector instance.
 export function toVector3(value: Vector3Like): Vector3 {
   return new Vector3(value.x, value.y, value.z);
+}
+
+function createInternalBlobMotion(
+  motion: BlobSeed["motion"],
+  simulatorConfig: PhysicsSimulatorConfig,
+): BlobMotion<Vector3> {
+  if (!motion || motion.kind === "dynamic") {
+    return { kind: "dynamic" };
+  }
+
+  const coordinateFrame = resolveCoordinateFrame(simulatorConfig.projection);
+  const anchorPosition =
+    simulatorConfig.projection?.inputSpace === "lamp-local"
+      ? projectPointFromLampLocal(motion.anchorPosition, coordinateFrame)
+      : motion.anchorPosition;
+  const wobbleAmplitude =
+    simulatorConfig.projection?.inputSpace === "lamp-local"
+      ? projectVectorFromLampLocal(
+          motion.wobbleAmplitude ?? { x: 0, y: 0, z: 0 },
+          coordinateFrame,
+        )
+      : motion.wobbleAmplitude ?? { x: 0, y: 0, z: 0 };
+
+  return {
+    kind: "anchored",
+    anchorPosition: toVector3(anchorPosition),
+    wobbleAmplitude: toVector3(wobbleAmplitude),
+    wobbleFrequency: motion.wobbleFrequency ?? 0,
+  };
+}
+
+function cloneInternalBlobMotion(motion: BlobMotion<Vector3>): BlobMotion<Vector3> {
+  if (motion.kind === "dynamic") {
+    return motion;
+  }
+
+  return {
+    kind: "anchored",
+    anchorPosition: motion.anchorPosition.clone(),
+    wobbleAmplitude: motion.wobbleAmplitude?.clone(),
+    wobbleFrequency: motion.wobbleFrequency,
+  };
 }

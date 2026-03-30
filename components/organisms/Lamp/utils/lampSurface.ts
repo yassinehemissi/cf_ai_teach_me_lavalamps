@@ -23,6 +23,7 @@ import type {
 const SURFACE_BLUR_INTENSITY = 0.035;
 const SURFACE_MAX_POLY_COUNT = 9000;
 const SURFACE_FIELD_GAIN = 1.35;
+const SURFACE_REFERENCE_FIELD_VALUE = 3.4;
 
 export const DEFAULT_LAVA_COLOR_GRADIENT: LavaColorGradient = {
   cool: "#f25d1c",
@@ -30,7 +31,7 @@ export const DEFAULT_LAVA_COLOR_GRADIENT: LavaColorGradient = {
   hot: "#ffd36a",
 };
 
-export const SURFACE_UPDATE_INTERVAL_SECONDS = 1 / 20;
+export const SURFACE_UPDATE_INTERVAL_SECONDS = 1 / 60;
 
 export function createMarchingCubes(
   resolution: number,
@@ -65,20 +66,28 @@ export function updateMarchingCubesSurface(
 ): void {
   const flowStrength = clamp(dynamics.averageForceMagnitude / 2.75, 0, 1.2);
   const heatGap = clamp(dynamics.temperatureSpread / 0.42, 0, 1.2);
-  const stats = getActiveFieldStats(field.values);
-  const activeSpan = Math.max(stats.max - stats.min, 0.0001);
 
   marchingCubes.reset();
 
-  for (let index = 0; index < field.values.length; index += 1) {
+  if (field.activeCount === 0) {
+    marchingCubes.isolation = 46 - flowStrength * 3 - heatGap * 2;
+    marchingCubes.blur(SURFACE_BLUR_INTENSITY);
+    marchingCubes.update();
+
+    return;
+  }
+
+  marchingCubes.field.fill(0);
+
+  for (let activeIndex = 0; activeIndex < field.activeIndices.length; activeIndex += 1) {
+    const index = field.activeIndices[activeIndex];
     const sourceValue = field.values[index];
 
-    if (sourceValue <= 0 || stats.activeCount === 0) {
-      marchingCubes.field[index] = 0;
-      continue;
-    }
-
-    const normalizedValue = ((sourceValue - stats.min) / activeSpan) * 100;
+    const normalizedValue = clamp(
+      (sourceValue / SURFACE_REFERENCE_FIELD_VALUE) * 100,
+      0,
+      100,
+    );
     const stochasticLift =
       1 +
       Math.sin(index * 0.173 + heatGap * 2.1) * 0.015 +
@@ -258,39 +267,6 @@ function createLavaSurfaceMaterial(colorGradient: LavaColorGradient) {
 
   return material;
 }
-
-function getActiveFieldStats(values: Float32Array) {
-  let min = Number.POSITIVE_INFINITY;
-  let max = Number.NEGATIVE_INFINITY;
-  let activeCount = 0;
-
-  for (let index = 0; index < values.length; index += 1) {
-    const value = values[index];
-
-    if (value <= 0) {
-      continue;
-    }
-
-    min = Math.min(min, value);
-    max = Math.max(max, value);
-    activeCount += 1;
-  }
-
-  if (activeCount === 0) {
-    return {
-      min: 0,
-      max: 0,
-      activeCount: 0,
-    };
-  }
-
-  return {
-    min,
-    max,
-    activeCount,
-  };
-}
-
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }

@@ -24,8 +24,8 @@ const AXES = ["x", "y", "z"] as const;
 const LAVA_SLICE_COUNT = 40;
 const LAMP_LOCAL_TO_SIMULATION_PROJECTION = {
   x: { axis: "x", sign: 1 },
-  y: { axis: "z", sign: -1 },
-  z: { axis: "y", sign: 1 },
+  y: { axis: "y", sign: 1 },
+  z: { axis: "z", sign: 1 },
 } as const;
 
 export function prepareLampModel(scene: Group): PreparedLampModel {

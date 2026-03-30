@@ -38,5 +38,6 @@ export type AllLampsState = {
 };
 
 export type AllLampsStateArgs = {
+  lampCount: number;
   wallMount: RoomWallMount;
 };
