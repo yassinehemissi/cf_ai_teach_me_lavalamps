@@ -61,21 +61,6 @@ export class LavaLampSimulationRegistry {
     }
   }
 
-  // Adds or replaces one renderer entry in the registry.
-  register(entry: LavaLampRendererEntry): void {
-    this.renderers.set(entry.lampId, entry.renderer);
-  }
-
-  // Removes a renderer entry and its placement metadata.
-  unregister(lampId: string): void {
-    this.renderers.delete(lampId);
-  }
-
-  // Looks up one registered renderer by lamp id.
-  get(lampId: string): LavaLampRenderer | undefined {
-    return this.renderers.get(lampId);
-  }
-
   // Returns the full registry as a stable array snapshot.
   getAll(): RegisteredLavaLampRenderer[] {
     return Array.from(this.renderers.entries()).map(([lampId, renderer]) => ({
@@ -83,12 +68,5 @@ export class LavaLampSimulationRegistry {
         placement: renderer.placement,
         renderer,
       }));
-  }
-
-  // Resets every registered renderer in one pass.
-  resetAll(): void {
-    for (const renderer of this.renderers.values()) {
-      renderer.reset();
-    }
   }
 }

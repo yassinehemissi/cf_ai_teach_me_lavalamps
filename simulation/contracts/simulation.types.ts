@@ -22,7 +22,6 @@ export type SimulationParameterUpdate = {
 
 export type SimulationStepInput = {
   deltaTimeMs: number;
-  elapsedTimeMs: number;
 };
 
 export interface SimulationControllerContract {

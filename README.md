@@ -2,53 +2,112 @@
 
 ![Demo](./demo.gif)
 
-## Introduction
+## Overview
 
+This project is a lava-lamp-inspired demo built with Next.js, React Three Fiber, and Cloudflare services.
 
-AI Teach Me Lava Lamps is a demo project that mixes a lava-lamp-inspired fluid simulation, a room-scale Three.js scene, an entropy extraction workflow, and an AI chat layer. The goal is not scientific research or production cryptography. The goal is to explore the visual and conceptual overlap between lava-lamp motion, stochastic behavior, agent-driven controls, and a Cloudflare-oriented demo stack.
+It is not a Navier-Stokes solver and it is not a production randomness system. The simulation is a simplified blob-based model designed for stable visuals, bounded runtime control, and an explorable entropy demo.
 
-*Note: Some parts of the code require further review. For demo purposes, certain components were accelerated. Full details can be found in PROMPTS.MD, AGENTS.MD, and CODING_RULES.MD, as this project was developed with AI assistance.*
+The app combines:
 
+- A simplified lava-lamp simulation with bounded runtime parameters
+- A Three.js room scene with one or more lamp instances
+- A frame-capture entropy workflow based on rendered output
+- An authenticated AI chat layer that can explain the system and trigger approved actions
 
-## What Is This?
+## What The Code Actually Does
 
-This project started from curiosity around a "Cloudflare lamps" style idea: using lava-lamp-like motion and rendered frames as a playful source of observable randomness, then wrapping that experience in a chat-driven interface. In practice, this repo contains:
+### Simulation
 
-- A simplified physics simulation for lava-lamp-like blob motion and scalar fields
-- A room scene with a wall of reusable lamp instances
-- A frame capture and entropy extraction workflow
-- A protected AI chat interface that can explain the system and apply bounded runtime controls
+The physics core models lava as a set of blobs with:
 
-It is a demo and an experiment, not a cleaned final product or a reviewed security reference.
+- position
+- velocity
+- temperature
+- influence radius
+- strength
+- mass
 
-## Technologies
+Each step applies:
+
+- temperature evolution
+- buoyancy
+- gravity
+- drag
+- soft boundary response
+
+The simulator uses a fixed timestep and semi-implicit Euler integration, then rebuilds a scalar field that is rendered through Marching Cubes.
+
+This is a visually driven approximation, not research-grade fluid dynamics.
+
+### Entropy Workflow
+
+The entropy pipeline captures rendered lamp frames from the canvas, transfers them to a worker as an `ImageBitmap`, resizes the image, extracts RGBA bytes, mixes in timing noise plus demo external entropy bytes, and hashes the pool with SHA-256.
+
+For multi-frame captures, the per-frame pools are concatenated and hashed again.
+
+This is a demo entropy workflow only. It should not be treated as a standalone secure source of randomness.
+
+### Agent Layer
+
+The chat layer is authenticated and bounded. It can:
+
+- explain the simulation
+- explain entropy output
+- adjust approved simulation parameters
+- trigger entropy capture
+
+The current parameter surface is intentionally small:
+
+- `buoyancy`
+- `damping`
+- `diffusion`
+- `temperature`
+
+## Stack
 
 - Next.js App Router
 - React
 - Three.js
 - React Three Fiber
 - Marching Cubes
-- Cloudflare AI
+- LangGraph (using `@langchain/cloudflare` + custom tool calling code)
+- Cloudflare Workers AI
 - Cloudflare Vectorize
 - Cloudflare D1
 - JWT-based auth
-- `bcrypt`
-- `react-katex`
+- bcrypt 
+- react-katex (for agent math notation rendering)
 
-## Running
+## Setup
+
+### 1. Install dependencies
 
 ```bash
 bun install
-bun dev
 ```
 
-Open `http://localhost:3000` after the dev server starts.
+### 2. Configure environment variables
 
-## Usage
+Copy `.env.example` to `.env` and fill in the required values.
 
-### D1
+Required in the current implementation:
 
-Create the auth tables:
+- `CLOUDFLARE_ACCOUNT_ID`
+- `CLOUDFLARE_D1_DATABASE_ID`
+- `CLOUDFLARE_D1_API_TOKEN`
+- `AUTH_JWT_SECRET`
+- `CLOUDFLARE_VECTORIZE_MEMORY_INDEX`
+
+Optional:
+
+- `CLOUDFLARE_API_TOKEN`
+  If unset, the app falls back to `CLOUDFLARE_D1_API_TOKEN` for Cloudflare API access.
+- `D1_AUTH_USERS_TABLE`
+  Defaults to `users`.
+- `CLOUDFLARE_AI_MODEL`
+
+### 3. Create the D1 tables
 
 ```sql
 CREATE TABLE users (
@@ -70,35 +129,49 @@ CREATE TABLE quotas (
 );
 ```
 
-### Vectorize
+### 4. Create the Vectorize memory index
 
-Example index commands with Wrangler:
+Example with Wrangler:
 
 ```bash
 wrangler vectorize create <YOUR_MEMORY_INDEX> --dimensions=768 --metric=cosine
 ```
 
-## Features
+### 5. Run the app
 
-- Simplified lava-lamp physics with bounded runtime parameter updates
-- Multi-lamp room scene with reusable renderer instances
-- Live entropy capture from rendered frames
-- Worker-based image resizing, RGBA flattening, and SHA-256 whitening
-- Protected chat interface with bounded simulation and entropy actions
-- Session-aware chat quota handling
-- LaTeX-capable response rendering in chat
+```bash
+bun run dev
+```
 
-## Algorithm
+Then open `http://localhost:3000`.
 
-1. We simulate lava-lamp-like motion through simplified physics-inspired formulas for heating, cooling, buoyancy, drag, and scalar field evolution.
-2. We capture rendered lamp frames, resize and flatten them into RGBA bytes, mix them with timing jitter, and hash the resulting pool to produce demo entropy inspired by the Cloudflare lava-lamp idea.
-3. An AI agent sits on top of the system to explain the simulation, modify bounded runtime parameters, and run the entropy workflow on demand.
+## Available Scripts
 
-## Notes
+```bash
+bun run dev
+bun run build
+bun run start
+bun run lint
+```
 
-- The codebase is not yet fully cleaned, fully reviewed, or fully hardened.
-- The physics model is intentionally simplified for demonstration purposes.
-- The entropy workflow is illustrative and should not be treated as a standalone production randomness system.
+## App Flow
+
+1. Users sign up or sign in.
+2. The `/simulation` route is protected by session auth.
+3. The room scene renders one or more lamp instances.
+4. Each lamp runs the simplified blob simulation and renders its liquid surface through Marching Cubes.
+5. The chat layer can explain the system or issue bounded client-side actions.
+6. Entropy capture can be triggered manually or from chat, then summarized back into the UI.
+
+## Important Notes
+
+- This repo is a demo, not a hardened security product.
+- The simulation is intentionally simplified for stability and control.
+- The entropy output is illustrative and should not be marketed as production cryptography.
+- Some internal repository rules and prompt logs live under `vibe/`, especially:
+  - `vibe/CODING_RULES.MD`
+  - `vibe/PLAN.MD`
+  - `vibe/PROMPTS.MD`
 
 ## Credits
 
@@ -106,4 +179,4 @@ wrangler vectorize create <YOUR_MEMORY_INDEX> --dimensions=768 --metric=cosine
 
 ## Author
 
-Med
+[Med](https://www.yassinehemissi.me/)

@@ -2,7 +2,6 @@
 
 import { useRef } from "react";
 import { useFrame } from "@react-three/fiber";
-import { Group } from "three";
 
 import { LampLiquid } from "./components/LampLiquid/LampLiquid";
 import { useLampState } from "./Lamp.state";
@@ -14,7 +13,6 @@ export function Lamp({
   renderer,
   colorGradient = DEFAULT_LAVA_COLOR_GRADIENT,
 }: LampProps) {
-  const lampGroupRef = useRef<Group>(null);
   const fieldUpdateAccumulatorRef = useRef(0);
   const {
     lampScene,
@@ -27,7 +25,6 @@ export function Lamp({
   useFrame((frameState, deltaSeconds) => {
     renderer.step({
       deltaTimeMs: deltaSeconds * 1000,
-      elapsedTimeMs: frameState.clock.elapsedTime * 1000,
     });
     fieldUpdateAccumulatorRef.current += deltaSeconds;
 
@@ -42,14 +39,10 @@ export function Lamp({
     }
 
     snapshotRef.current = nextSnapshot;
-
-    if (!lampGroupRef.current) {
-      return;
-    }
   });
 
   return (
-    <group ref={lampGroupRef} position={[0, 0.7, 0]}>
+    <group position={[0, 0.7, 0]}>
       <group position={[modelOffset.x, modelOffset.y, modelOffset.z]}>
         <LampLiquid
           initialSnapshot={initialSnapshot}

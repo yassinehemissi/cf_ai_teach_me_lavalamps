@@ -1,5 +1,6 @@
 import type {
   SimulationGuardrails,
+  SimulationParameterKey,
   SimulationParameterUpdate,
   SimulationStepInput,
 } from "../../contracts/simulation.types";
@@ -149,7 +150,7 @@ export class PhysicsSimulator extends LavaLampSimulation {
   // Applies one external parameter update while respecting configured guardrails.
   setParameter(update: SimulationParameterUpdate): void {
     const guardrail = this.guardrails[update.key];
-    const clampedValue = clamp(update.value, guardrail.min, guardrail.max);
+    const clampedValue = this.getClampedParameterValue(update);
     const defaultValue = Math.max(guardrail.defaultValue, 0.0001);
     const relativeScale = clampedValue / defaultValue;
 
@@ -187,6 +188,27 @@ export class PhysicsSimulator extends LavaLampSimulation {
         this.temperatureConfig.stochasticAmplitude =
           this.baseTemperatureConfig.stochasticAmplitude * relativeScale;
         return;
+    }
+  }
+
+  // Returns the guardrail-clamped value for one external parameter update.
+  getClampedParameterValue(update: SimulationParameterUpdate): number {
+    const guardrail = this.guardrails[update.key];
+
+    return clamp(update.value, guardrail.min, guardrail.max);
+  }
+
+  // Returns the current exposed parameter value tracked by the simulator.
+  getParameterValue(key: SimulationParameterKey): number {
+    switch (key) {
+      case "diffusion":
+        return this.temperatureConfig.diffusionRate;
+      case "buoyancy":
+        return this.forceConfig.buoyancyBeta;
+      case "damping":
+        return this.forceConfig.dragCoefficient;
+      case "temperature":
+        return this.temperatureConfig.globalHeating;
     }
   }
 

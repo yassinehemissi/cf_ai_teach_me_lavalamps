@@ -6,7 +6,6 @@ import { MeshPhysicalMaterial } from "three";
 
 import type { LampLiquidProps } from "./LampLiquid.types";
 import {
-  SURFACE_UPDATE_INTERVAL_SECONDS,
   applySurfaceTransform,
   createMarchingCubes,
   disposeMarchingCubes,
@@ -38,7 +37,7 @@ export function LampLiquid({
     };
   }, [coordinateFrame, initialSnapshot.field, marchingCubes]);
 
-  useFrame((frameState, deltaSeconds) => {
+  useFrame((frameState) => {
     const snapshot = snapshotRef.current;
 
     if (lastFieldRef.current !== snapshot.field) {

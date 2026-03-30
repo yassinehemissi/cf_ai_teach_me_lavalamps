@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { SimulationCommand } from "@/ai/types/command.types";
 import type { LavaLampRenderer } from "@/simulation/core/LavaLampRenderer";
@@ -11,19 +11,29 @@ import type {
   UseSimulationParameterStateResult,
 } from "./SimulationParameters.types";
 
-const DEFAULT_PARAMETER_VALUES: SimulationParameterValues = {
-  buoyancy: 0.98,
-  damping: 0.38,
-  diffusion: 0.05,
-  temperature: 0.28,
-};
-
 export function useSimulationParameterState(
   renderers: LavaLampRenderer[],
 ): UseSimulationParameterStateResult {
   const [parameters, setParameters] = useState<SimulationParameterValues>(
-    DEFAULT_PARAMETER_VALUES,
+    () => getInitialParameterValues(renderers[0]),
   );
+
+  useEffect(() => {
+    if (renderers.length === 0) {
+      return;
+    }
+
+    for (const renderer of renderers) {
+      for (const [key, value] of Object.entries(parameters) as Array<
+        [SimulationParameterKey, number]
+      >) {
+        renderer.setParameter({
+          key,
+          value,
+        });
+      }
+    }
+  }, [parameters, renderers]);
 
   const parameterEntries = useMemo(
     () =>
@@ -41,10 +51,15 @@ export function useSimulationParameterState(
       command: Extract<SimulationCommand, { kind: "set-simulation-parameter" }>,
     ) => {
       setParameters((currentParameters) => {
-        const nextValue =
+        const requestedValue =
           command.mode === "absolute"
             ? command.value
             : currentParameters[command.key] + command.delta;
+        const nextValue =
+          renderers[0]?.getClampedParameterValue({
+            key: command.key,
+            value: requestedValue,
+          }) ?? requestedValue;
         const nextParameters = {
           ...currentParameters,
           [command.key]: nextValue,
@@ -67,5 +82,25 @@ export function useSimulationParameterState(
     applySimulationCommand,
     parameterEntries,
     parameters,
+  };
+}
+
+function getInitialParameterValues(
+  renderer: LavaLampRenderer | undefined,
+): SimulationParameterValues {
+  if (!renderer) {
+    return {
+      buoyancy: 0.98,
+      damping: 0.38,
+      diffusion: 0.05,
+      temperature: 0.28,
+    };
+  }
+
+  return {
+    buoyancy: renderer.getParameterValue("buoyancy"),
+    damping: renderer.getParameterValue("damping"),
+    diffusion: renderer.getParameterValue("diffusion"),
+    temperature: renderer.getParameterValue("temperature"),
   };
 }

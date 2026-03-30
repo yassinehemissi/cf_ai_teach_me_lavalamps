@@ -1855,3 +1855,24 @@ the entropy latest context from client side isn't being parsed correctly on serv
 I rechecked the client entropy-context builder against the server contract and widened the runtime schema boundary rather than the domain model, since the static shapes already matched.
 The server schema now coerces numeric fields at the edge and defaults a missing `frames` array to `[]`, which makes the action payload more resilient to client/server serialization drift.
 I verified the change with targeted lint on the chat schema file and a successful production build.
+
+## 2026-03-30
+
+### User Prompt
+remove from the package.json the script, fix the rest since they are crucial and remove any unused variable/method or line of code
+
+### 3-Line Answer Summary
+I removed the broken `embed:knowledge` script, cleaned the confirmed dead code in the lamp and registry paths, and removed the unused simulation step payload field.
+I fixed the crucial parameter-state mismatch by making the UI use the simulator's real clamped values and by deriving initial parameter values from the active renderer instead of duplicate hardcoded state.
+I verified the cleanup with a clean `eslint` run, a passing `npx tsc --noEmit`, and a successful production `next build`.
+
+
+## 2026-03-30
+
+### User Prompt
+update the readme md
+
+### 3-Line Answer Summary
+I rewrote `README.md` to match the current project instead of the older partially stale description.
+The new README now documents the actual blob-based simulation, the current entropy pipeline, the authenticated chat layer, npm-based setup, and the required environment variables.
+I also corrected the references to repository guidance so they point to the real `vibe/` files instead of outdated root-level paths.

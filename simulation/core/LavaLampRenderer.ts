@@ -1,4 +1,5 @@
 import type {
+  SimulationParameterKey,
   SimulationParameterUpdate,
   SimulationStepInput,
 } from "../contracts/simulation.types";
@@ -86,6 +87,16 @@ export class LavaLampRenderer extends LavaLampSimulation {
   // Applies a guarded runtime parameter update to the underlying simulator.
   setParameter(update: SimulationParameterUpdate): void {
     this.physicsSimulator.setParameter(update);
+  }
+
+  // Returns the canonical clamped value for one exposed parameter update.
+  getClampedParameterValue(update: SimulationParameterUpdate): number {
+    return this.physicsSimulator.getClampedParameterValue(update);
+  }
+
+  // Returns the current exposed parameter value tracked by the renderer simulator.
+  getParameterValue(key: SimulationParameterKey): number {
+    return this.physicsSimulator.getParameterValue(key);
   }
 
   // Returns a defensive copy of the configured mesh names.
